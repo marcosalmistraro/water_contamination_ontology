@@ -1,0 +1,131 @@
+"""Unit tests for E-PRTR ingester and mapper."""
+
+from __future__ import annotations
+
+import io
+import textwrap
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pandas as pd
+import pytest
+from rdflib import Graph, URIRef
+
+from water_ontology.ingesters.eprtr import (
+    EprtrIngester,
+    _event_id,
+    _normalise_medium,
+    _pollutant_id,
+)
+from water_ontology.mapping.eprtr_mapper import EprtrMapper
+from water_ontology.models import EmissionEvent, IndustrialFacility, Pollutant
+
+WCD = "https://w3id.org/water-contamination/data/"
+WC = "https://w3id.org/water-contamination/"
+
+
+# ── Utility function tests ─────────────────────────────────────────────────────
+
+def test_normalise_medium_maps_correctly() -> None:
+    assert _normalise_medium("AIR") == "air"
+    assert _normalise_medium("Water") == "water"
+    assert _normalise_medium("LAND") == "land"
+    assert _normalise_medium("unknown") == "water"  # default
+
+
+def test_pollutant_id_prefers_cas() -> None:
+    assert _pollutant_id("NOx", "10102-44-0") == "CAS:10102-44-0"
+    assert _pollutant_id("NOx", float("nan")) == "EPRTR:NOx"
+    assert _pollutant_id("NOx", "") == "EPRTR:NOx"
+
+
+def test_event_id_stable() -> None:
+    row = pd.Series({"facility_id": "42", "pollutant_code": "NOx", "reporting_year": 2020})
+    assert _event_id(row) == "EPRTR:42:NOx:2020"
+
+
+# ── Mapper tests ───────────────────────────────────────────────────────────────
+
+class TestEprtrMapper:
+    def test_add_facility_creates_individual(self, empty_graph: Graph) -> None:
+        mapper = EprtrMapper(empty_graph)
+        fac = IndustrialFacility(
+            facility_id="FAC001",
+            name="Test Plant",
+            country_code="DE",
+            lat=51.5,
+            lon=9.0,
+        )
+        mapper.add_facility(fac)
+
+        iri = URIRef(f"{WCD}facility/FAC001")
+        assert (iri, None, None) in empty_graph
+
+    def test_add_facility_includes_coordinates(self, empty_graph: Graph) -> None:
+        mapper = EprtrMapper(empty_graph)
+        fac = IndustrialFacility(
+            facility_id="FAC002", name="X", country_code="FR", lat=48.8, lon=2.3
+        )
+        mapper.add_facility(fac)
+
+        lat_prop = URIRef("http://www.w3.org/2003/01/geo/wgs84_pos#lat")
+        iri = URIRef(f"{WCD}facility/FAC002")
+        values = list(empty_graph.objects(iri, lat_prop))
+        assert len(values) == 1
+        assert float(values[0]) == pytest.approx(48.8)
+
+    def test_add_pollutant(self, empty_graph: Graph) -> None:
+        mapper = EprtrMapper(empty_graph)
+        pol = Pollutant(pollutant_id="CAS:7440-38-2", name="Arsenic", medium="water")
+        mapper.add_pollutant(pol)
+
+        iri = URIRef(f"{WCD}pollutant/CAS_7440-38-2")
+        assert (iri, None, None) in empty_graph
+
+    def test_add_emission_event_links_facility_and_pollutant(self, empty_graph: Graph) -> None:
+        mapper = EprtrMapper(empty_graph)
+
+        fac = IndustrialFacility(facility_id="FAC003", name="Y", country_code="PL")
+        pol = Pollutant(pollutant_id="CAS:7440-38-2", name="Arsenic", medium="water")
+        mapper.add_facility(fac)
+        mapper.add_pollutant(pol)
+
+        event = EmissionEvent(
+            event_id="EPRTR:FAC003:As:2019",
+            facility_id="FAC003",
+            pollutant_id="CAS:7440-38-2",
+            reporting_year=2019,
+            quantity_kg=500.0,
+            medium="water",
+        )
+        mapper.add_emission_event(event)
+
+        fac_iri = URIRef(f"{WCD}facility/FAC003")
+        ev_iri = URIRef(f"{WCD}emission/EPRTR_FAC003_As_2019")
+        has_event = URIRef(f"{WC}hasEmissionEvent")
+
+        assert (fac_iri, has_event, ev_iri) in empty_graph
+
+
+# ── Model validation tests ─────────────────────────────────────────────────────
+
+def test_emission_event_rejects_bad_year() -> None:
+    with pytest.raises(Exception):
+        EmissionEvent(
+            event_id="x",
+            facility_id="1",
+            pollutant_id="p",
+            reporting_year=1800,
+            medium="water",
+        )
+
+
+def test_emission_event_rejects_bad_medium() -> None:
+    with pytest.raises(Exception):
+        EmissionEvent(
+            event_id="x",
+            facility_id="1",
+            pollutant_id="p",
+            reporting_year=2020,
+            medium="smoke",
+        )

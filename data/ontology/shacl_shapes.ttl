@@ -1,0 +1,71 @@
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix wc:   <https://w3id.org/water-contamination/> .
+@prefix wcd:  <https://w3id.org/water-contamination/data/> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+# ── IndustrialFacility ────────────────────────────────────────────────────────
+wc:FacilityShape
+    a sh:NodeShape ;
+    sh:targetClass wc:IndustrialFacility ;
+    sh:property [
+        sh:path wc:facilityId ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:message "IndustrialFacility must have exactly one facilityId" ;
+    ] ;
+    sh:property [
+        sh:path wc:facilityName ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path wc:countryCode ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] .
+
+# ── EmissionEvent ─────────────────────────────────────────────────────────────
+wc:EmissionEventShape
+    a sh:NodeShape ;
+    sh:targetClass wc:EmissionEvent ;
+    sh:property [
+        sh:path wc:reportingYear ;
+        sh:datatype xsd:integer ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:minInclusive 1990 ;
+        sh:maxInclusive 2100 ;
+    ] ;
+    sh:property [
+        sh:path wc:medium ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:in ( "air" "water" "land" ) ;
+    ] ;
+    sh:property [
+        sh:path wc:involvesPollutant ;
+        sh:class wc:Pollutant ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] .
+
+# ── Pollutant ─────────────────────────────────────────────────────────────────
+wc:PollutantShape
+    a sh:NodeShape ;
+    sh:targetClass wc:Pollutant ;
+    sh:property [
+        sh:path wc:pollutantName ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path wc:medium ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:in ( "air" "water" "land" ) ;
+    ] .

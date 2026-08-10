@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.eggs/
+*.egg-info/
+dist/
+build/
+
+# Virtual envs
+.venv/
+venv/
+env/
+.env/
+
+# Data (raw and processed are too large for git)
+data/raw/
+data/processed/
+
+# MLflow artefacts
+mlruns/
+mlartifacts/
+
+# Secrets
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# Coverage
+.coverage
+coverage.xml
+htmlcov/
+
+# mypy cache
+.mypy_cache/
+
+# pytest cache
+.pytest_cache/

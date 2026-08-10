@@ -1,0 +1,16 @@
+base_iri: "https://w3id.org/water-contamination/"
+
+namespaces:
+  wc:    "https://w3id.org/water-contamination/"
+  wcd:   "https://w3id.org/water-contamination/data/"
+  schema: "https://schema.org/"
+  geo:   "http://www.opengis.net/ont/geosparql#"
+  sosa:  "http://www.w3.org/ns/sosa/"
+  ssn:   "http://www.w3.org/ns/ssn/"
+  skos:  "http://www.w3.org/2004/02/skos/core#"
+  dcterms: "http://purl.org/dc/terms/"
+  xsd:   "http://www.w3.org/2001/XMLSchema#"
+  prov:  "http://www.w3.org/ns/prov#"
+
+ontology_file: "data/ontology/water_contamination.owl"
+shacl_file: "data/ontology/shacl_shapes.ttl"

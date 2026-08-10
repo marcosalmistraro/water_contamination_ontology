@@ -1,0 +1,40 @@
+sources:
+
+  eprtr:
+    name: "E-PRTR — European Pollutant Release and Transfer Register"
+    url: "https://industry.eea.europa.eu/download/E-PRTR_database_v18_csv.zip"
+    format: csv_zip
+    local_zip: "data/raw/eprtr.zip"
+    extract_to: "data/raw/eprtr/"
+    # Filename inside the zip that holds facility-level releases
+    releases_file: "dbo.PUBLISH_POLLUTANT_RELEASES.csv"
+    facilities_file: "dbo.PUBLISH_FACILITIES.csv"
+    encoding: "utf-8-sig"
+    chunksize: 50000
+
+  waterbase:
+    name: "EEA Waterbase — Water Quality Measurements"
+    url: "https://www.eea.europa.eu/data-and-maps/data/waterbase-water-quality-icm-2/waterbase-water-quality-icm/waterbase_v2021_t_waterbase_w_quality_icm.xlsx/at_download/file"
+    format: excel
+    local_file: "data/raw/waterbase.xlsx"
+    sheet_name: 0
+
+  eea_geojson:
+    name: "EEA River Basin Districts (GeoJSON)"
+    url: "https://geo.eea.europa.eu/api/download/river_basin_districts.geojson"
+    format: geojson
+    local_file: "data/raw/river_basins.geojson"
+
+  ied_pdf:
+    name: "EU IED — Best Available Techniques Reference Document (PDF)"
+    # BREF for Large Combustion Plants — contains E-PRTR threshold tables
+    url: "https://eippcb.jrc.ec.europa.eu/sites/default/files/inline-files/LCP_Bref_2017_published.pdf"
+    format: pdf
+    local_file: "data/raw/ied_bref.pdf"
+    regulation_label: "IED BREF Large Combustion Plants (2017)"
+
+  inspire_envthes:
+    name: "EnvThes — Environmental Thesaurus (Turtle)"
+    url: "https://vocabs.lter-europe.net/envthes/en/envthes.ttl"
+    format: turtle
+    local_file: "data/raw/envthes.ttl"
