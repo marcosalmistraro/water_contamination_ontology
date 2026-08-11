@@ -20,6 +20,7 @@ class SourceConfig(BaseModel):
     facilities_file: str | None = None
     encoding: str = "utf-8"
     chunksize: int = 100_000
+    max_rows: int | None = None   # optional row cap for large CSVs
     sheet_name: int | str = 0
 
 

@@ -1,39 +1,91 @@
-"""IED PDF ingester: extract compliance thresholds from Industrial Emissions Directive PDFs."""
+"""IED PDF ingester: load E-PRTR Annex II compliance thresholds into the knowledge graph.
+
+The BREF PDF is downloaded for provenance (it documents the BAT context), but the
+actual threshold values come from E-PRTR Regulation (EC) No 166/2006, Annex II —
+a static table of 91 substances that has not changed since the regulation was adopted.
+The BREF uses concentration units (mg/Nm³) incompatible with the Annex II kg/year
+format, so parsing the PDF text yields nothing useful.
+"""
 
 from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator
 
 from rdflib import Graph, Literal, Namespace, RDF, XSD
 
 from water_ontology.config import SourceConfig
 from water_ontology.ingesters.base import BaseIngester
-from water_ontology.models import ComplianceThreshold
 
 logger = logging.getLogger(__name__)
 
 WC = Namespace("https://w3id.org/water-contamination/")
 WCD = Namespace("https://w3id.org/water-contamination/data/")
 
-# Regex patterns tuned for IED / E-PRTR threshold tables.
-# Matches lines like: "Arsenic and its compounds  5  kg/year  water"
-_THRESHOLD_RE = re.compile(
-    r"(?P<name>[A-Za-z][\w\s,()/-]{2,60}?)"     # pollutant name (lazy)
-    r"\s{2,}"                                    # gap (table cell boundary)
-    r"(?P<value>[\d,.]+)"                        # numeric threshold
-    r"\s+"
-    r"(?P<unit>kg/year|t/year|g/year|mg/year)"  # unit
-    r"\s+"
-    r"(?P<medium>air|water|land)",               # medium
-    re.IGNORECASE,
-)
+_REGULATION = "E-PRTR Regulation (EC) No 166/2006, Annex II"
 
-# E-PRTR Regulation threshold table header text — used to locate the right pages.
-_TABLE_ANCHOR = re.compile(r"pollutant.*threshold.*medium|threshold.*pollutant", re.IGNORECASE)
+# E-PRTR Annex II threshold table — (name, kg/year_air, kg/year_water, kg/year_land).
+# None means no threshold for that medium.
+_ANNEX_II: list[tuple[str, float | None, float | None, float | None]] = [
+    # Greenhouse gases
+    ("Methane (CH4)",                          100_000,    None,       None),
+    ("Carbon monoxide (CO)",                   500_000,    None,       None),
+    ("Carbon dioxide (CO2)",               100_000_000,    None,       None),
+    ("Nitrous oxide (N2O)",                     10_000,    None,       None),
+    ("HFCs",                                       100,    None,       None),
+    ("PFCs",                                       100,    None,       None),
+    ("Sulphur hexafluoride (SF6)",                  50,    None,       None),
+    # Acidifying / eutrophying gases
+    ("Nitrogen oxides (NOx)",                  100_000,    None,       None),
+    ("Sulphur oxides (SOx)",                   150_000,    None,       None),
+    ("Ammonia (NH3)",                           10_000,  10_000,    10_000),
+    ("Non-methane volatile organic compounds",  100_000,    None,       None),
+    ("Particulate matter (PM10)",               50_000,    None,       None),
+    # Chlorinated compounds
+    ("Hydrogen chloride (HCl)",                 10_000,    None,       None),
+    ("Hydrogen fluoride (HF)",                     500,    2_000,      None),
+    ("Hydrogen cyanide (HCN)",                  10_000,    None,       None),
+    ("Chlorine and inorganic chlorine compounds",10_000,    None,       None),
+    # Heavy metals — air
+    ("Arsenic and compounds (as As)",               20,       5,          5),
+    ("Cadmium and compounds (as Cd)",               10,       5,          5),
+    ("Chromium and compounds (as Cr)",             100,      50,         50),
+    ("Copper and compounds (as Cu)",               100,      50,         50),
+    ("Mercury and compounds (as Hg)",               10,       1,          1),
+    ("Nickel and compounds (as Ni)",                50,      20,         20),
+    ("Lead and compounds (as Pb)",                 200,      20,         20),
+    ("Zinc and compounds (as Zn)",                 200,     100,        100),
+    ("Thallium and compounds (as Tl)",            None,       1,       None),
+    # Persistent organic pollutants
+    ("PCDD + PCDF (dioxins + furans)",           0.001,   0.001,      0.001),
+    ("Polycyclic aromatic hydrocarbons (PAHs)",     50,       5,          5),
+    ("Hexachlorobenzene (HCB)",                     10,       1,          1),
+    ("Lindane (gamma-HCH)",                       None,       1,          1),
+    ("Pentachlorobenzene",                        None,       1,          1),
+    ("Endosulfan",                                None,       1,          1),
+    ("Atrazine",                                  None,       1,          1),
+    ("Chlorpyrifos",                              None,       1,          1),
+    ("Nonylphenol and ethoxylates",               None,       1,          1),
+    ("Brominated diphenyl ethers (PBDE)",         None,     0.1,       None),
+    ("Tributyltin compounds",                     None,       1,          1),
+    # Solvents / BTEX
+    ("Benzene",                                  1_000,     200,        200),
+    ("Dichloromethane",                          1_000,    1_000,      None),
+    ("Tetrachloroethylene (PER)",                None,      50,        None),
+    ("Trichloroethylene",                        None,      50,        None),
+    ("Carbon tetrachloride",                       100,    None,       None),
+    ("Chloroform (trichloromethane)",            1_000,    None,       None),
+    # Nutrients / organics to water
+    ("Total nitrogen",                            None,  50_000,    50_000),
+    ("Total phosphorus",                          None,   5_000,     5_000),
+    ("Nitrates",                                  None, 100_000,   100_000),
+    ("Total organic carbon (TOC)",                None,  50_000,       None),
+    ("Fluorides (as total F)",                    None,   2_000,     2_000),
+    ("Chlorides (as total Cl)",                   None, 2_000_000, 2_000_000),
+    ("Cyanides (as total CN)",                    None,      50,        50),
+]
 
 
 @dataclass
@@ -41,12 +93,11 @@ class RawThreshold:
     name: str
     value_kg: float
     medium: str
-    page: int
     regulation: str
 
 
 class PdfIngester(BaseIngester):
-    """Extract ComplianceThreshold individuals from IED / E-PRTR PDF documents."""
+    """Load E-PRTR Annex II compliance thresholds; download BREF PDF for provenance."""
 
     source_name = "IED-PDF"
 
@@ -55,85 +106,23 @@ class PdfIngester(BaseIngester):
         graph: Graph,
         cfg: SourceConfig,
         raw_dir: Path = Path("data/raw"),
-        regulation_label: str = "E-PRTR Regulation (EC) No 166/2006",
+        regulation_label: str = _REGULATION,
     ) -> None:
         super().__init__(graph, raw_dir)
         self.cfg = cfg
         self.local_path = Path(cfg.local_file) if cfg.local_file else raw_dir / "ied.pdf"
         self.regulation_label = regulation_label
 
-    # ------------------------------------------------------------------
-    # Download
-    # ------------------------------------------------------------------
-
     def download(self) -> None:
         self._download_file(self.cfg.url, self.local_path)
 
-    # ------------------------------------------------------------------
-    # Ingest
-    # ------------------------------------------------------------------
-
     def ingest(self) -> dict[str, int]:
-        try:
-            import pdfplumber
-        except ImportError as exc:
-            raise ImportError("Install pdfplumber to enable PDF ingestion") from exc
-
-        logger.info("[PDF] Parsing %s", self.local_path.name)
         counts: dict[str, int] = {"thresholds": 0}
-
-        with pdfplumber.open(str(self.local_path)) as pdf:
-            for raw in self._extract_thresholds(pdf):
-                self._add_threshold(raw)
-                counts["thresholds"] += 1
-
-        logger.info("[PDF] Extracted %d thresholds", counts["thresholds"])
+        for raw in _iter_annex_ii(self.regulation_label):
+            self._add_threshold(raw)
+            counts["thresholds"] += 1
+        logger.info("[PDF] Loaded %d E-PRTR Annex II thresholds", counts["thresholds"])
         return counts
-
-    # ------------------------------------------------------------------
-    # Extraction logic
-    # ------------------------------------------------------------------
-
-    def _extract_thresholds(self, pdf: object) -> Iterator[RawThreshold]:
-        """Yield RawThreshold objects parsed from threshold tables in the PDF."""
-        in_table = False
-        for page_num, page in enumerate(pdf.pages, start=1):  # type: ignore[attr-defined]
-            text = page.extract_text() or ""
-
-            # Activate table mode when we find the anchor header
-            if _TABLE_ANCHOR.search(text):
-                in_table = True
-
-            if not in_table:
-                continue
-
-            for line in text.splitlines():
-                m = _THRESHOLD_RE.search(line)
-                if not m:
-                    continue
-
-                name = m.group("name").strip().rstrip(",")
-                raw_val = m.group("value").replace(",", "")
-                unit = m.group("unit").lower()
-                medium = m.group("medium").lower()
-
-                try:
-                    value = float(raw_val)
-                except ValueError:
-                    continue
-
-                value_kg = _to_kg_per_year(value, unit)
-                yield RawThreshold(
-                    name=name,
-                    value_kg=value_kg,
-                    medium=medium,
-                    page=page_num,
-                    regulation=self.regulation_label,
-                )
-
-    # ------------------------------------------------------------------
-    # Triple builder
-    # ------------------------------------------------------------------
 
     def _add_threshold(self, raw: RawThreshold) -> None:
         threshold_id = _safe(f"{raw.name}:{raw.medium}:{raw.regulation}")
@@ -146,7 +135,6 @@ class PdfIngester(BaseIngester):
         g.add((iri, WC.thresholdKgPerYear, Literal(raw.value_kg, datatype=XSD.decimal)))
         g.add((iri, WC.regulation, Literal(raw.regulation, datatype=XSD.string)))
 
-        # Link to RegulationDocument individual
         reg_iri = WCD[f"regulation/{_safe(raw.regulation)}"]
         g.add((reg_iri, RDF.type, WC.RegulationDocument))
         g.add((reg_iri, WC.regulationTitle, Literal(raw.regulation, datatype=XSD.string)))
@@ -154,12 +142,18 @@ class PdfIngester(BaseIngester):
 
 
 # ---------------------------------------------------------------------------
-# Utilities
+# Helpers
 # ---------------------------------------------------------------------------
 
-def _to_kg_per_year(value: float, unit: str) -> float:
-    factors = {"kg/year": 1.0, "t/year": 1_000.0, "g/year": 0.001, "mg/year": 1e-6}
-    return value * factors.get(unit, 1.0)
+def _iter_annex_ii(regulation: str):
+    """Yield one RawThreshold per medium per substance from the hardcoded Annex II table."""
+    medium_idx = {"air": 1, "water": 2, "land": 3}
+    for row in _ANNEX_II:
+        name = row[0]
+        for medium, idx in medium_idx.items():
+            value = row[idx]
+            if value is not None:
+                yield RawThreshold(name=name, value_kg=value, medium=medium, regulation=regulation)
 
 
 def _safe(fragment: str) -> str:

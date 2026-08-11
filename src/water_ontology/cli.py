@@ -5,7 +5,10 @@ from __future__ import annotations
 import logging
 from enum import Enum
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from water_ontology.ingesters.base import BaseIngester
 
 import typer
 from rich.console import Console
@@ -69,51 +72,46 @@ def ingest(
     graph = build_graph(ont_cfg)
 
     all_counts: dict[str, int] = {}
+    skipped: list[str] = []
 
     ctx_manager = _maybe_mlflow(track, source)
 
     with ctx_manager:
         if source in ("eprtr", "all"):
-            ingester = EprtrIngester(graph, src_cfg.sources["eprtr"], raw_dir=raw_dir)
-            counts = ingester.run()
-            all_counts.update({f"eprtr_{k}": v for k, v in counts.items()})
-            if track:
-                from water_ontology.tracking.mlflow_logger import log_ingestion_counts
-                log_ingestion_counts(counts)
+            _run_ingester(
+                "eprtr", lambda: EprtrIngester(graph, src_cfg.sources["eprtr"], raw_dir=raw_dir),
+                all_counts, skipped, track,
+            )
 
         if source in ("waterbase", "all") and "waterbase" in src_cfg.sources:
-            ingester_wb = WaterbaseIngester(graph, src_cfg.sources["waterbase"], raw_dir=raw_dir)
-            counts = ingester_wb.run()
-            all_counts.update({f"waterbase_{k}": v for k, v in counts.items()})
-            if track:
-                from water_ontology.tracking.mlflow_logger import log_ingestion_counts
-                log_ingestion_counts(counts)
+            _run_ingester(
+                "waterbase",
+                lambda: WaterbaseIngester(graph, src_cfg.sources["waterbase"], raw_dir=raw_dir),
+                all_counts, skipped, track,
+            )
 
         if source in ("geojson", "all") and "eea_geojson" in src_cfg.sources:
-            ingester_geo = GeoJsonIngester(
-                graph, src_cfg.sources["eea_geojson"], raw_dir=raw_dir, mode="both"
+            _run_ingester(
+                "geojson",
+                lambda: GeoJsonIngester(
+                    graph, src_cfg.sources["eea_geojson"], raw_dir=raw_dir, mode="both"
+                ),
+                all_counts, skipped, track,
             )
-            counts = ingester_geo.run()
-            all_counts.update({f"geojson_{k}": v for k, v in counts.items()})
-            if track:
-                from water_ontology.tracking.mlflow_logger import log_ingestion_counts
-                log_ingestion_counts(counts)
 
         if source in ("pdf", "all") and "ied_pdf" in src_cfg.sources:
-            ingester_pdf = PdfIngester(graph, src_cfg.sources["ied_pdf"], raw_dir=raw_dir)
-            counts = ingester_pdf.run()
-            all_counts.update({f"pdf_{k}": v for k, v in counts.items()})
-            if track:
-                from water_ontology.tracking.mlflow_logger import log_ingestion_counts
-                log_ingestion_counts(counts)
+            _run_ingester(
+                "pdf",
+                lambda: PdfIngester(graph, src_cfg.sources["ied_pdf"], raw_dir=raw_dir),
+                all_counts, skipped, track,
+            )
 
         if source in ("rdf", "all") and "inspire_envthes" in src_cfg.sources:
-            ingester_rdf = RdfIngester(graph, src_cfg.sources["inspire_envthes"], raw_dir=raw_dir)
-            counts = ingester_rdf.run()
-            all_counts.update({f"rdf_{k}": v for k, v in counts.items()})
-            if track:
-                from water_ontology.tracking.mlflow_logger import log_ingestion_counts
-                log_ingestion_counts(counts)
+            _run_ingester(
+                "rdf",
+                lambda: RdfIngester(graph, src_cfg.sources["inspire_envthes"], raw_dir=raw_dir),
+                all_counts, skipped, track,
+            )
 
         if validate and shacl_shapes.exists():
             from water_ontology.validation.shacl_validator import validate as shacl_validate
@@ -128,6 +126,8 @@ def ingest(
 
     save_graph(graph, output, fmt="xml")
     console.print(f"[bold green]Graph saved → {output}[/bold green]")
+    if skipped:
+        console.print(f"[bold yellow]Skipped (errors): {', '.join(skipped)}[/bold yellow]")
     _print_counts(all_counts)
 
 
@@ -153,6 +153,28 @@ def validate_only(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _run_ingester(
+    label: str,
+    factory: "Callable[[], BaseIngester]",
+    all_counts: dict,
+    skipped: list,
+    track: bool,
+) -> None:
+    """Run one ingester, catch any exception, and continue the pipeline."""
+    import logging as _logging
+    _log = _logging.getLogger(__name__)
+    try:
+        ingester = factory()
+        counts = ingester.run()
+        all_counts.update({f"{label}_{k}": v for k, v in counts.items()})
+        if track:
+            from water_ontology.tracking.mlflow_logger import log_ingestion_counts
+            log_ingestion_counts(counts)
+    except Exception as exc:
+        _log.error("[%s] Ingester failed — skipping: %s", label.upper(), exc)
+        skipped.append(label)
+
 
 def _print_counts(counts: dict[str, int]) -> None:
     table = Table(title="Ingestion summary", show_header=True)

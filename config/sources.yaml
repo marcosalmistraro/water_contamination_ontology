@@ -1,40 +1,48 @@
 sources:
 
   eprtr:
-    name: "E-PRTR — European Pollutant Release and Transfer Register"
-    url: "https://industry.eea.europa.eu/download/E-PRTR_database_v18_csv.zip"
+    name: "IED + E-PRTR Integrated Database v16 (2007-2024)"
+    url: "https://sdi.eea.europa.eu/datastore/public/eea_t_ied-eprtr_p_2007-2024_v16_r00/User%20friendly%20.csv%20files.zip"
     format: csv_zip
     local_zip: "data/raw/eprtr.zip"
     extract_to: "data/raw/eprtr/"
-    # Filename inside the zip that holds facility-level releases
-    releases_file: "dbo.PUBLISH_POLLUTANT_RELEASES.csv"
-    facilities_file: "dbo.PUBLISH_FACILITIES.csv"
+    # v16 ZIP contains topic-specific CSVs; water releases file serves as both
+    # facility list (deduplicated) and release rows source
+    releases_file: "F2_4_Water_Releases_Facilities.csv"
+    facilities_file: "F2_4_Water_Releases_Facilities.csv"
     encoding: "utf-8-sig"
     chunksize: 50000
 
   waterbase:
-    name: "EEA Waterbase — Water Quality Measurements"
-    url: "https://www.eea.europa.eu/data-and-maps/data/waterbase-water-quality-icm-2/waterbase-water-quality-icm/waterbase_v2021_t_waterbase_w_quality_icm.xlsx/at_download/file"
-    format: excel
-    local_file: "data/raw/waterbase.xlsx"
-    sheet_name: 0
+    name: "EEA Waterbase — Water Quality ICM (WISE6, 2020 Part 1)"
+    # EEA retired the single-file Excel download; data is now CSV-in-ZIP.
+    # Part 1 ZIP is the smallest confirmed-working package (~WISE6 ICM schema).
+    url: "https://cmshare.eea.europa.eu/s/yyAYF45k6nFAsZB/download"
+    format: csv_zip
+    local_zip: "data/raw/waterbase.zip"
+    extract_to: "data/raw/waterbase/"
+    encoding: "utf-8-sig"
+    chunksize: 50000
+    max_rows: 500000   # cap at 500K rows — full file is 51M rows (too slow for portfolio)
 
   eea_geojson:
-    name: "EEA River Basin Districts (GeoJSON)"
-    url: "https://geo.eea.europa.eu/api/download/river_basin_districts.geojson"
+    name: "EEA River Basin Districts (GeoJSON via ArcGIS REST)"
+    # geo.eea.europa.eu no longer resolves; spatial data migrated to WISE ArcGIS
+    url: "https://water.discomap.eea.europa.eu/arcgis/rest/services/WISE_SoE/EIONET_RiverBasinDistrict_WM/MapServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&f=geojson"
     format: geojson
     local_file: "data/raw/river_basins.geojson"
 
   ied_pdf:
     name: "EU IED — Best Available Techniques Reference Document (PDF)"
-    # BREF for Large Combustion Plants — contains E-PRTR threshold tables
-    url: "https://eippcb.jrc.ec.europa.eu/sites/default/files/inline-files/LCP_Bref_2017_published.pdf"
+    # eippcb.jrc.ec.europa.eu moved; canonical copy now at JRC Publications Repository
+    url: "https://publications.jrc.ec.europa.eu/repository/bitstream/JRC107769/jrc107769_lcp_bref2017(1).pdf"
     format: pdf
     local_file: "data/raw/ied_bref.pdf"
     regulation_label: "IED BREF Large Combustion Plants (2017)"
 
   inspire_envthes:
     name: "EnvThes — Environmental Thesaurus (Turtle)"
-    url: "https://vocabs.lter-europe.net/envthes/en/envthes.ttl"
+    # vocabs.lter-europe.net bulk TTL export is gone; canonical source is GitHub
+    url: "https://raw.githubusercontent.com/LTER-Europe/EnvThes/main/EnvThes.ttl"
     format: turtle
     local_file: "data/raw/envthes.ttl"

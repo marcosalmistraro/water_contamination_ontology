@@ -79,9 +79,12 @@ class GeoJsonIngester(BaseIngester):
 
             feature_id = str(
                 props.get("rbdCode")
+                or props.get("thematicIdIdentifier")   # ArcGIS WISE endpoint
+                or props.get("inspireIdLocalId")       # ArcGIS WISE endpoint alt
                 or props.get("waterBodyCode")
                 or props.get("id")
                 or props.get("FID")
+                or props.get("OBJECTID")
                 or ""
             ).strip()
 
@@ -114,7 +117,10 @@ class GeoJsonIngester(BaseIngester):
         g.add((iri, RDF.type, WC.WaterBody))
         g.add((iri, WC.waterBodyId, Literal(feature_id, datatype=XSD.string)))
 
-        name = str(props.get("rbdName") or props.get("waterBodyName") or "").strip()
+        name = str(
+            props.get("rbdName") or props.get("nameText")
+            or props.get("nameTextInternational") or props.get("waterBodyName") or ""
+        ).strip()
         if name:
             g.add((iri, WC.waterBodyName, Literal(name, datatype=XSD.string)))
 
@@ -122,7 +128,7 @@ class GeoJsonIngester(BaseIngester):
         if cc:
             g.add((iri, WC.countryCode, Literal(cc, datatype=XSD.string)))
 
-        rbd = str(props.get("rbdCode") or "").strip()
+        rbd = str(props.get("rbdCode") or props.get("thematicIdIdentifier") or "").strip()
         if rbd:
             g.add((iri, WC.rbdCode, Literal(rbd, datatype=XSD.string)))
 
@@ -142,7 +148,10 @@ class GeoJsonIngester(BaseIngester):
         g.add((iri, RDF.type, WC.Catchment))
         g.add((iri, WC.catchmentId, Literal(feature_id, datatype=XSD.string)))
 
-        name = str(props.get("rbdName") or props.get("catchmentName") or "").strip()
+        name = str(
+            props.get("rbdName") or props.get("nameText")
+            or props.get("nameTextInternational") or props.get("catchmentName") or ""
+        ).strip()
         if name:
             g.add((iri, WC.catchmentName, Literal(name, datatype=XSD.string)))
 

@@ -1,9 +1,16 @@
-"""EEA Waterbase ingester: Excel → MonitoringStation + WaterQualityObservation triples."""
+"""EEA Waterbase ingester: CSV-in-ZIP → MonitoringStation + WaterQualityObservation triples.
+
+EEA retired the single-file Excel download (≤v2021). Data is now distributed as
+CSV files inside a ZIP archive (WISE6 ICM schema). The ingester downloads the ZIP,
+extracts it, finds the main measurement CSV by keyword, and streams it in chunks.
+"""
 
 from __future__ import annotations
 
 import logging
+import zipfile
 from pathlib import Path
+from typing import Iterator
 
 import pandas as pd
 from rdflib import Graph, Literal, Namespace, RDF, XSD
@@ -57,50 +64,82 @@ class WaterbaseIngester(BaseIngester):
     ) -> None:
         super().__init__(graph, raw_dir)
         self.cfg = cfg
-        self.local_path = Path(cfg.local_file) if cfg.local_file else raw_dir / "waterbase.xlsx"
+        self.zip_path = Path(cfg.local_zip) if cfg.local_zip else raw_dir / "waterbase.zip"
+        self.extract_dir = Path(cfg.extract_to) if cfg.extract_to else raw_dir / "waterbase"
+        self.chunksize = cfg.chunksize
 
     # ------------------------------------------------------------------
     # Download
     # ------------------------------------------------------------------
 
     def download(self) -> None:
-        self._download_file(self.cfg.url, self.local_path)
+        self._download_file(self.cfg.url, self.zip_path)
+        self._extract()
+
+    def _extract(self) -> None:
+        self.extract_dir.mkdir(parents=True, exist_ok=True)
+        if list(self.extract_dir.rglob("*.csv")):
+            logger.info("[Waterbase] Already extracted")
+            return
+        logger.info("[Waterbase] Extracting %s → %s", self.zip_path.name, self.extract_dir)
+        with zipfile.ZipFile(self.zip_path) as zf:
+            logger.info("[Waterbase] ZIP contents: %s", zf.namelist())
+            zf.extractall(self.extract_dir)
+
+    def _find_csv(self) -> Path:
+        """Find the main measurement CSV — prefer files with 'Disaggregated' or 'ICM' in name."""
+        all_csvs = list(self.extract_dir.rglob("*.csv"))
+        for kw in ("Disaggregated", "ICM", "waterbase", "WISE"):
+            matches = [f for f in all_csvs if kw.lower() in f.name.lower()]
+            if matches:
+                return matches[0]
+        if all_csvs:
+            return all_csvs[0]
+        raise FileNotFoundError(f"No CSV found in {self.extract_dir}")
 
     # ------------------------------------------------------------------
     # Ingest
     # ------------------------------------------------------------------
 
     def ingest(self) -> dict[str, int]:
-        logger.info("[Waterbase] Reading %s", self.local_path.name)
-        df = pd.read_excel(
-            self.local_path,
-            sheet_name=self.cfg.sheet_name,
-            engine="openpyxl",
-        )
+        csv_path = self._find_csv()
+        logger.info("[Waterbase] Streaming %s (chunk=%d)", csv_path.name, self.chunksize)
 
         counts: dict[str, int] = {"stations": 0, "water_bodies": 0, "observations": 0}
         wb_seen: set[str] = set()
         station_seen: set[str] = set()
+        rows_processed = 0
+        max_rows = self.cfg.max_rows
 
-        for _, row in df.iterrows():
-            # --- WaterBody ---
-            wb_id = _str(row.get("waterBodyIdentifier", ""))
-            if wb_id and wb_id not in wb_seen:
-                self._add_water_body(wb_id, row)
-                wb_seen.add(wb_id)
-                counts["water_bodies"] += 1
+        reader = pd.read_csv(
+            csv_path,
+            encoding=self.cfg.encoding,
+            chunksize=self.chunksize,
+            low_memory=False,
+        )
+        for chunk in reader:
+            if max_rows and rows_processed >= max_rows:
+                logger.info("[Waterbase] max_rows=%d reached — stopping early", max_rows)
+                break
+            if max_rows:
+                chunk = chunk.iloc[: max_rows - rows_processed]
+            rows_processed += len(chunk)
+            for _, row in chunk.iterrows():
+                wb_id = _str(row.get("waterBodyIdentifier", ""))
+                if wb_id and wb_id not in wb_seen:
+                    self._add_water_body(wb_id, row)
+                    wb_seen.add(wb_id)
+                    counts["water_bodies"] += 1
 
-            # --- MonitoringStation ---
-            sid = _str(row.get("monitoringSiteIdentifier", ""))
-            if sid and sid not in station_seen:
-                self._add_station(sid, row, wb_id)
-                station_seen.add(sid)
-                counts["stations"] += 1
+                sid = _str(row.get("monitoringSiteIdentifier", ""))
+                if sid and sid not in station_seen:
+                    self._add_station(sid, row, wb_id)
+                    station_seen.add(sid)
+                    counts["stations"] += 1
 
-            # --- Observation ---
-            if sid:
-                self._add_observation(sid, row)
-                counts["observations"] += 1
+                if sid:
+                    self._add_observation(sid, row)
+                    counts["observations"] += 1
 
         logger.info(
             "[Waterbase] %d stations, %d water bodies, %d observations",
@@ -150,7 +189,9 @@ class WaterbaseIngester(BaseIngester):
 
     def _add_observation(self, sid: str, row: pd.Series) -> None:  # type: ignore[type-arg]
         param_code = _str(row.get("observedPropertyDeterminandCode", ""))
-        year = _str(row.get("phenomenonTimeReferenceYear", ""))
+        # WISE6 DisaggregatedData uses sampling date; extract year for grouping
+        date_str = _str(row.get("phenomenonTimeSamplingDate", row.get("phenomenonTimeReferenceYear", "")))
+        year = date_str[:4] if len(date_str) >= 4 else ""
         if not param_code or not year:
             return
 
@@ -166,16 +207,16 @@ class WaterbaseIngester(BaseIngester):
         if param_name:
             g.add((iri, SOSA.observedProperty, Literal(param_name, datatype=XSD.string)))
 
-        mean_val = _float(row.get("resultMeanValue"))
-        if mean_val is not None:
-            g.add((iri, SOSA.hasSimpleResult, Literal(mean_val, datatype=XSD.decimal)))
+        # WISE6 disaggregated has per-sample values; older aggregated had resultMeanValue
+        value = _float(row.get("resultObservedValue", row.get("resultMeanValue")))
+        if value is not None:
+            g.add((iri, SOSA.hasSimpleResult, Literal(value, datatype=XSD.decimal)))
 
         unit = _str(row.get("resultUom", ""))
         if unit:
             g.add((iri, WC.unit, Literal(unit, datatype=XSD.string)))
 
-        if year:
-            g.add((iri, WC.reportingYear, Literal(int(year), datatype=XSD.integer)))
+        g.add((iri, WC.reportingYear, Literal(int(year), datatype=XSD.integer)))
 
 
 # ---------------------------------------------------------------------------
