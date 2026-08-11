@@ -1,10 +1,11 @@
 """Monitoring sites ingester: patch lat/lon onto Waterbase stations from EEA ArcGIS.
 
-The Waterbase DisaggregatedData CSV has no coordinates.  The EEA WISE monitoring
-sites ArcGIS layer has lat/lon and water body links keyed by the same
-thematicIdIdentifier used as monitoringSiteIdentifier in the CSV.  This ingester
-downloads all monitoring sites (paginated), then patches geo:lat / geo:long onto
-any station IRI already in the graph whose stationId matches.
+Two-pass strategy:
+  Pass 1 — EIONET service (WISE5 eionetMonitoringSiteCode scheme)
+  Pass 2 — WFD2022 service (WISE6 euMonitoringSiteCode scheme, batch IN-query)
+
+The Waterbase DisaggregatedData uses both schemes. Pass 1 covers ~487 stations,
+Pass 2 covers the remaining ~1681 stations that use WISE6 identifiers.
 """
 
 from __future__ import annotations
@@ -26,6 +27,13 @@ WC = Namespace("https://w3id.org/water-contamination/")
 WCD = Namespace("https://w3id.org/water-contamination/data/")
 GEO = Namespace("http://www.w3.org/2003/01/geo/wgs84_pos#")
 
+_WFD_URL = (
+    "https://water.discomap.eea.europa.eu"
+    "/arcgis/rest/services/WISE_WFD/WFD2022_MonitoringSite_WM/MapServer/0/query"
+)
+_WFD_BATCH = 100   # IDs per IN-clause request
+_WFD_FIELDS = "thematicIdIdentifier,lat,lon"
+
 
 def _safe(fragment: str) -> str:
     return str(fragment).replace(" ", "_").replace("/", "-").replace(":", "_")
@@ -45,11 +53,12 @@ class MonitoringSitesIngester(BaseIngester):
         super().__init__(graph, raw_dir)
         self.cfg = cfg
         self.local_path = Path(cfg.local_file) if cfg.local_file else raw_dir / "monitoring_sites.geojson"
+        self.wfd_cache = self.local_path.parent / "wfd_crosswalk.json"
         self.page_size = cfg.page_size or 1000
         self.base_url = cfg.url
 
     # ------------------------------------------------------------------
-    # Download (paginated ArcGIS query)
+    # Download — Pass 1: EIONET monitoring sites (paginated)
     # ------------------------------------------------------------------
 
     def download(self) -> None:
@@ -57,7 +66,7 @@ class MonitoringSitesIngester(BaseIngester):
             logger.info("[%s] Already downloaded: %s", self.source_name, self.local_path.name)
             return
 
-        logger.info("[%s] Downloading monitoring sites (paginated, page=%d)", self.source_name, self.page_size)
+        logger.info("[%s] Downloading EIONET monitoring sites (paginated, page=%d)", self.source_name, self.page_size)
         all_features: list[dict] = []
         offset = 0
 
@@ -78,7 +87,7 @@ class MonitoringSitesIngester(BaseIngester):
             if not features:
                 break
             all_features.extend(features)
-            logger.info("[%s] Fetched %d sites (offset=%d)", self.source_name, len(all_features), offset)
+            logger.info("[%s] Fetched %d EIONET sites (offset=%d)", self.source_name, len(all_features), offset)
             if len(features) < self.page_size:
                 break
             offset += self.page_size
@@ -86,33 +95,21 @@ class MonitoringSitesIngester(BaseIngester):
         collection = {"type": "FeatureCollection", "features": all_features}
         self.local_path.parent.mkdir(parents=True, exist_ok=True)
         self.local_path.write_text(json.dumps(collection), encoding="utf-8")
-        logger.info("[%s] Saved %d sites → %s", self.source_name, len(all_features), self.local_path)
+        logger.info("[%s] Saved %d EIONET sites → %s", self.source_name, len(all_features), self.local_path)
 
     # ------------------------------------------------------------------
-    # Ingest — patch lat/lon onto existing station IRIs
+    # Ingest
     # ------------------------------------------------------------------
 
     def ingest(self) -> dict[str, int]:
+        # --- Pass 1: EIONET sites (eionetMonitoringSiteCode) ---
         with self.local_path.open(encoding="utf-8") as fh:
             collection = json.load(fh)
-        features = collection.get("features", [])
-        logger.info("[%s] Loaded %d monitoring sites", self.source_name, len(features))
+        eionet_sites = _build_lookup(collection.get("features", []))
+        logger.info("[%s] EIONET lookup: %d sites with coordinates", self.source_name, len(eionet_sites))
 
-        # Build lookup: stationId → {lat, lon} from downloaded features
-        sites: dict[str, dict] = {}
-        for feat in features:
-            pp = feat.get("properties") or {}
-            sid = str(pp.get("thematicIdIdentifier") or "").strip()
-            lat = pp.get("lat")
-            lon = pp.get("lon")
-            if sid and lat is not None and lon is not None:
-                try:
-                    sites[sid] = {"lat": float(lat), "lon": float(lon)}
-                except (TypeError, ValueError):
-                    pass
-
-        # Query existing station IRIs from the graph
-        matched = patched = 0
+        # Get all station IRIs + IDs from graph
+        station_map: dict[str, URIRef] = {}  # sid → iri
         q = """
             PREFIX wc: <https://w3id.org/water-contamination/>
             SELECT ?iri ?sid WHERE {
@@ -121,19 +118,106 @@ class MonitoringSitesIngester(BaseIngester):
             }
         """
         for row in self.graph.query(q):
-            iri: URIRef = row[0]  # type: ignore[assignment]
-            sid = str(row[1])
-            matched += 1
-            site = sites.get(sid)
-            if not site:
-                continue
-            g = self.graph
-            g.add((iri, GEO.lat, Literal(site["lat"], datatype=XSD.decimal)))
-            g.add((iri, GEO.long, Literal(site["lon"], datatype=XSD.decimal)))
-            patched += 1
+            station_map[str(row[1])] = row[0]  # type: ignore[assignment]
 
+        # Patch pass 1
+        p1 = _patch_stations(self.graph, station_map, eionet_sites)
+        logger.info("[%s] Pass 1 (EIONET): patched %d stations", self.source_name, p1)
+
+        # --- Pass 2: WFD2022 batch lookup for remaining unmatched stations ---
+        unmatched = _find_unmatched(self.graph, station_map)
+        logger.info("[%s] Unmatched after pass 1: %d stations", self.source_name, len(unmatched))
+
+        wfd_sites = self._fetch_wfd_sites(list(unmatched))
+        p2 = _patch_stations(self.graph, station_map, wfd_sites)
+        logger.info("[%s] Pass 2 (WFD2022): patched %d stations", self.source_name, p2)
+
+        total = p1 + p2
         logger.info(
-            "[%s] Stations in graph: %d | lat/lon patched: %d | sites downloaded: %d",
-            self.source_name, matched, patched, len(sites),
+            "[%s] Total stations in graph: %d | total patched: %d",
+            self.source_name, len(station_map), total,
         )
-        return {"stations_patched": patched, "sites_downloaded": len(sites)}
+        return {"stations_patched": total, "eionet_patched": p1, "wfd_patched": p2}
+
+    # ------------------------------------------------------------------
+    # Pass 2: WFD2022 batch IN-query
+    # ------------------------------------------------------------------
+
+    def _fetch_wfd_sites(self, station_ids: list[str]) -> dict[str, dict]:
+        """Batch-query WFD2022 for specific station IDs; cache results to disk."""
+        if not station_ids:
+            return {}
+
+        if self.wfd_cache.exists():
+            logger.info("[%s] Loading WFD crosswalk from cache: %s", self.source_name, self.wfd_cache.name)
+            with self.wfd_cache.open(encoding="utf-8") as fh:
+                return json.load(fh)
+
+        logger.info("[%s] Querying WFD2022 for %d station IDs (batch=%d)", self.source_name, len(station_ids), _WFD_BATCH)
+        all_sites: dict[str, dict] = {}
+
+        for i in range(0, len(station_ids), _WFD_BATCH):
+            batch = station_ids[i : i + _WFD_BATCH]
+            id_list = ", ".join(f"'{sid}'" for sid in batch)
+            where_clause = f"thematicIdIdentifier IN ({id_list})"
+            params = {
+                "where": where_clause,
+                "outFields": _WFD_FIELDS,
+                "returnGeometry": "false",
+                "f": "geojson",
+            }
+            try:
+                resp = requests.post(_WFD_URL, data=params, timeout=30)
+                resp.raise_for_status()
+                features = resp.json().get("features", [])
+                batch_sites = _build_lookup(features)
+                all_sites.update(batch_sites)
+            except Exception as exc:
+                logger.warning("[%s] WFD batch %d failed: %s", self.source_name, i // _WFD_BATCH, exc)
+
+            if (i // _WFD_BATCH + 1) % 5 == 0:
+                logger.info("[%s] WFD progress: %d/%d batches, %d matched", self.source_name, i // _WFD_BATCH + 1, (len(station_ids) + _WFD_BATCH - 1) // _WFD_BATCH, len(all_sites))
+
+        self.wfd_cache.write_text(json.dumps(all_sites), encoding="utf-8")
+        logger.info("[%s] WFD crosswalk: %d matches → %s", self.source_name, len(all_sites), self.wfd_cache.name)
+        return all_sites
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _build_lookup(features: list[dict]) -> dict[str, dict]:
+    """Build {thematicIdIdentifier → {lat, lon}} from a GeoJSON feature list."""
+    out: dict[str, dict] = {}
+    for feat in features:
+        pp = feat.get("properties") or {}
+        sid = str(pp.get("thematicIdIdentifier") or "").strip()
+        lat = pp.get("lat")
+        lon = pp.get("lon")
+        if sid and lat is not None and lon is not None:
+            try:
+                out[sid] = {"lat": float(lat), "lon": float(lon)}
+            except (TypeError, ValueError):
+                pass
+    return out
+
+
+def _patch_stations(graph: Graph, station_map: dict[str, URIRef], sites: dict[str, dict]) -> int:
+    """Add geo:lat/geo:long to stations in station_map that appear in sites. Returns count patched."""
+    patched = 0
+    for sid, iri in station_map.items():
+        site = sites.get(sid)
+        if not site:
+            continue
+        if (iri, GEO.lat, None) in graph:
+            continue  # already has coordinates
+        graph.add((iri, GEO.lat, Literal(site["lat"], datatype=XSD.decimal)))
+        graph.add((iri, GEO.long, Literal(site["lon"], datatype=XSD.decimal)))
+        patched += 1
+    return patched
+
+
+def _find_unmatched(graph: Graph, station_map: dict[str, URIRef]) -> set[str]:
+    """Return station IDs that have no geo:lat triple yet."""
+    return {sid for sid, iri in station_map.items() if (iri, GEO.lat, None) not in graph}
