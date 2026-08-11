@@ -41,7 +41,7 @@ def _setup_logging(level: LogLevel) -> None:
 @app.command()
 def ingest(
     source: str = typer.Argument(
-        "all", help="Data source to ingest: eprtr | waterbase | geojson | pdf | rdf | all"
+        "all", help="Data source to ingest: eprtr | waterbase | geojson | pdf | rdf | monitoring_sites | all"
     ),
     raw_dir: Path = typer.Option(Path("data/raw"), help="Directory for raw downloads"),
     output: Path = typer.Option(
@@ -66,6 +66,8 @@ def ingest(
     from water_ontology.ingesters.geojson_ingester import GeoJsonIngester
     from water_ontology.ingesters.pdf_ingester import PdfIngester
     from water_ontology.ingesters.rdf_ingester import RdfIngester
+    from water_ontology.ingesters.monitoring_sites_ingester import MonitoringSitesIngester
+    from water_ontology.linkers.spatial_joiner import link_facilities_to_rbds
 
     src_cfg = load_sources(sources_cfg)
     ont_cfg = load_ontology_config(ontology_cfg)
@@ -112,6 +114,27 @@ def ingest(
                 lambda: RdfIngester(graph, src_cfg.sources["inspire_envthes"], raw_dir=raw_dir),
                 all_counts, skipped, track,
             )
+
+        if source in ("monitoring_sites", "all") and "wise_monitoring_sites" in src_cfg.sources:
+            _run_ingester(
+                "monitoring_sites",
+                lambda: MonitoringSitesIngester(
+                    graph, src_cfg.sources["wise_monitoring_sites"], raw_dir=raw_dir
+                ),
+                all_counts, skipped, track,
+            )
+
+        # Spatial join: link E-PRTR facilities to river basin districts
+        if source == "all":
+            import logging as _logging
+            _sj_log = _logging.getLogger(__name__)
+            rbd_path = raw_dir / "eu_river_basins.geojson"
+            try:
+                sj_counts = link_facilities_to_rbds(graph, rbd_path)
+                all_counts.update({f"spatial_{k}": v for k, v in sj_counts.items()})
+                _sj_log.info("[SpatialJoin] %s", sj_counts)
+            except Exception as exc:
+                _sj_log.error("[SpatialJoin] Failed — skipping: %s", exc)
 
         if validate and shacl_shapes.exists():
             from water_ontology.validation.shacl_validator import validate as shacl_validate

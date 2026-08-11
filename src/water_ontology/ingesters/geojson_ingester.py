@@ -6,7 +6,9 @@ import json
 import logging
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
+import requests
 from rdflib import Graph, Literal, Namespace, RDF, XSD
 
 from water_ontology.config import SourceConfig
@@ -59,7 +61,49 @@ class GeoJsonIngester(BaseIngester):
     # ------------------------------------------------------------------
 
     def download(self) -> None:
-        self._download_file(self.cfg.url, self.local_path)
+        if self.cfg.page_size:
+            self._download_arcgis_paginated()
+        else:
+            self._download_file(self.cfg.url, self.local_path)
+
+    def _download_arcgis_paginated(self) -> None:
+        """Paginated ArcGIS REST download: merge all pages into one GeoJSON file."""
+        if self.local_path.exists():
+            logger.info("[%s] Already downloaded: %s", self.source_name, self.local_path.name)
+            return
+
+        page_size = self.cfg.page_size or 10
+        base_url = self.cfg.url
+        all_features: list[dict] = []
+        offset = 0
+
+        logger.info("[%s] Paginated download from %s (page=%d)", self.source_name, base_url, page_size)
+        while True:
+            params = {
+                "where": "1=1",
+                "outFields": "*",
+                "returnGeometry": "true",
+                "resultOffset": str(offset),
+                "resultRecordCount": str(page_size),
+                "f": "geojson",
+            }
+            url = f"{base_url}?{urlencode(params)}"
+            resp = requests.get(url, timeout=120)
+            resp.raise_for_status()
+            data = resp.json()
+            features = data.get("features", [])
+            if not features:
+                break
+            all_features.extend(features)
+            logger.info("[%s] Fetched %d features (offset=%d)", self.source_name, len(all_features), offset)
+            if len(features) < page_size:
+                break
+            offset += page_size
+
+        collection = {"type": "FeatureCollection", "features": all_features}
+        self.local_path.parent.mkdir(parents=True, exist_ok=True)
+        self.local_path.write_text(json.dumps(collection), encoding="utf-8")
+        logger.info("[%s] Saved %d features → %s", self.source_name, len(all_features), self.local_path)
 
     # ------------------------------------------------------------------
     # Ingest

@@ -26,11 +26,21 @@ sources:
     max_rows: 500000   # cap at 500K rows — full file is 51M rows (too slow for portfolio)
 
   eea_geojson:
-    name: "EEA River Basin Districts (GeoJSON via ArcGIS REST)"
-    # geo.eea.europa.eu no longer resolves; spatial data migrated to WISE ArcGIS
-    url: "https://water.discomap.eea.europa.eu/arcgis/rest/services/WISE_SoE/EIONET_RiverBasinDistrict_WM/MapServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&f=geojson"
+    name: "EEA River Basin Districts — EU + reporting countries (GeoJSON via ArcGIS REST)"
+    # EIONET_RiverBasinDistrict_WM only covers 23 non-EU reporting countries.
+    # WISE_SoE_RiverBasinDistrict_WM has 209 EU RBDs with polygon geometry but returns
+    # HTTP 500 when fetching all features at once — must paginate.
+    url: "https://water.discomap.eea.europa.eu/arcgis/rest/services/WISE_SoE/WISE_SoE_RiverBasinDistrict_WM/MapServer/0/query"
     format: geojson
-    local_file: "data/raw/river_basins.geojson"
+    local_file: "data/raw/eu_river_basins.geojson"
+    page_size: 10
+
+  wise_monitoring_sites:
+    name: "EEA WISE Monitoring Sites — lat/lon metadata (ArcGIS REST, paginated)"
+    url: "https://water.discomap.eea.europa.eu/arcgis/rest/services/WISE_SoE/EIONET_MonitoringSite_WM/MapServer/0/query"
+    format: geojson
+    local_file: "data/raw/monitoring_sites.geojson"
+    page_size: 1000
 
   ied_pdf:
     name: "EU IED — Best Available Techniques Reference Document (PDF)"
