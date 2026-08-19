@@ -12,5 +12,5 @@ namespaces:
   xsd:   "http://www.w3.org/2001/XMLSchema#"
   prov:  "http://www.w3.org/ns/prov#"
 
-ontology_file: "data/ontology/water_contamination.owl"
+ontology_file: "data/ontology/water_contamination.nt"
 shacl_file: "data/ontology/shacl_shapes.ttl"

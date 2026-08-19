@@ -16,6 +16,9 @@ env/
 # Data (raw and processed are too large for git)
 data/raw/
 data/processed/
+data/ontology/oxigraph_store/
+data/ontology/water_contamination.nt
+data/ontology/water_contamination.owl
 
 # MLflow artefacts
 mlruns/

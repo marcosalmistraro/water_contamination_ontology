@@ -34,11 +34,20 @@ st.set_page_config(
 
 @st.cache_resource(show_spinner="Loading knowledge graph…")
 def load_graph():  # type: ignore[return]
-    from water_ontology.graph import build_graph, load_graph as _load
-    owl_path = _ROOT / "data" / "ontology" / "water_contamination.owl"
-    if owl_path.exists():
-        return _load(owl_path)
-    st.warning("OWL file not found — using empty graph. Run `make ingest` first.")
+    from water_ontology.graph import build_graph, load_graph as _load, load_graph_oxigraph
+
+    # Oxigraph store: opens in milliseconds (no NT parsing)
+    ox_path = _ROOT / "data" / "ontology" / "oxigraph_store"
+    if ox_path.exists():
+        return load_graph_oxigraph(ox_path)
+
+    # Fallback: parse NT / OWL file (slow on large graphs)
+    for fname, fmt in [("water_contamination.nt", "nt"), ("water_contamination.owl", "xml")]:
+        p = _ROOT / "data" / "ontology" / fname
+        if p.exists():
+            return _load(p, fmt=fmt)
+
+    st.warning("No graph file found — using empty graph. Run `make ingest` first.")
     return build_graph()
 
 
@@ -134,14 +143,17 @@ with tab_chat:
 # ── Map tab ───────────────────────────────────────────────────────────────────
 
 with tab_map:
-    from streamlit_folium import st_folium
-    from components.map_view import build_map
-
     st.subheader("Facility & Monitoring Station Map")
     st.caption("Red = industrial facilities · Blue = monitoring stations")
-
-    fmap = build_map(graph)
-    st_folium(fmap, use_container_width=True, height=600, returned_objects=[])
+    try:
+        from streamlit_folium import st_folium
+        from components.map_view import build_map
+        fmap = build_map(graph)
+        st_folium(fmap, use_container_width=True, height=600, returned_objects=[])
+    except Exception as _map_exc:
+        import traceback
+        st.error(f"Map error: {_map_exc}")
+        st.code(traceback.format_exc())
 
 # ── SPARQL tab ────────────────────────────────────────────────────────────────
 

@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Load the OWL graph and initialise the NLChain once at startup."""
-    owl_path = Path(os.getenv("ONTOLOGY_FILE", "data/ontology/water_contamination.owl"))
+    owl_path = Path(os.getenv("ONTOLOGY_FILE", "data/ontology/water_contamination.nt"))
 
     if owl_path.exists():
         from water_ontology.graph import load_graph

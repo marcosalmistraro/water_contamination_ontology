@@ -1,4 +1,4 @@
-.PHONY: install lint test ingest ingest-eprtr ingest-waterbase ingest-geojson ingest-pdf ingest-rdf validate ui api clean
+.PHONY: install lint test ingest ingest-eprtr ingest-waterbase ingest-geojson ingest-pdf ingest-rdf validate validate-graph ui api clean
 
 install:
 	pip install -e ".[dev]"
@@ -12,7 +12,11 @@ test:
 
 # Full pipeline (all sources)
 ingest:
-	water-ontology ingest all --validate --track
+	water-ontology ingest all --no-validate
+
+# Validate a previously saved graph (slow on large graphs — run separately)
+validate-graph:
+	water-ontology validate-only data/ontology/water_contamination.nt
 
 # Individual sources
 ingest-eprtr:
@@ -40,7 +44,7 @@ api:
 
 # Validate an existing OWL file
 validate:
-	water-ontology validate-only data/ontology/water_contamination.owl
+	water-ontology validate-only data/ontology/water_contamination.nt
 
 clean:
 	rm -rf data/raw/ data/processed/ mlruns/

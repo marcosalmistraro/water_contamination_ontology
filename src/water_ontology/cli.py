@@ -45,7 +45,7 @@ def ingest(
     ),
     raw_dir: Path = typer.Option(Path("data/raw"), help="Directory for raw downloads"),
     output: Path = typer.Option(
-        Path("data/ontology/water_contamination.owl"), help="Output OWL file"
+        Path("data/ontology/water_contamination.nt"), help="Output graph file (N-Triples)"
     ),
     sources_cfg: Path = typer.Option(Path("config/sources.yaml"), help="Sources config"),
     ontology_cfg: Path = typer.Option(Path("config/ontology.yaml"), help="Ontology config"),
@@ -154,8 +154,14 @@ def ingest(
             else:
                 console.print("[bold green]SHACL: graph conforms[/bold green]")
 
-    save_graph(graph, output, fmt="xml")
+    save_graph(graph, output, fmt="nt")
     console.print(f"[bold green]Graph saved → {output}[/bold green]")
+
+    from water_ontology.graph import save_graph_oxigraph
+    ox_store_path = output.parent / "oxigraph_store"
+    console.print("[cyan]Building Oxigraph store for fast startup…[/cyan]")
+    save_graph_oxigraph(output, ox_store_path)
+    console.print(f"[bold green]Oxigraph store built → {ox_store_path}[/bold green]")
     if skipped:
         console.print(f"[bold yellow]Skipped (errors): {', '.join(skipped)}[/bold yellow]")
     _print_counts(all_counts)
@@ -163,7 +169,7 @@ def ingest(
 
 @app.command()
 def validate_only(
-    owl_file: Path = typer.Argument(..., help="OWL file to validate"),
+    owl_file: Path = typer.Argument(..., help="Graph file to validate (.nt or .owl)"),
     shacl_shapes: Path = typer.Option(
         Path("data/ontology/shacl_shapes.ttl"), help="SHACL shapes file"
     ),
@@ -174,7 +180,8 @@ def validate_only(
     from water_ontology.graph import load_graph
     from water_ontology.validation.shacl_validator import validate
 
-    graph = load_graph(owl_file)
+    fmt = "nt" if owl_file.suffix == ".nt" else "xml"
+    graph = load_graph(owl_file, fmt=fmt)
     result = validate(graph, shacl_shapes)
     console.print(result.report_text)
     raise typer.Exit(code=0 if result.conforms else 1)

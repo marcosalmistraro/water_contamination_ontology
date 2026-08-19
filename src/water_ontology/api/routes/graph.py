@@ -51,5 +51,5 @@ def graph_stats(graph: Graph = Depends(get_graph)) -> GraphStats:
     return GraphStats(
         total_triples=len(graph),
         class_counts=class_counts,
-        ontology_file=os.getenv("ONTOLOGY_FILE", "data/ontology/water_contamination.owl"),
+        ontology_file=os.getenv("ONTOLOGY_FILE", "data/ontology/water_contamination.nt"),
     )

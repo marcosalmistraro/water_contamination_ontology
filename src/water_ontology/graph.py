@@ -27,10 +27,12 @@ def build_graph(cfg: NamespacesConfig | None = None) -> Graph:
     return g
 
 
-def load_graph(path: Path, fmt: str = "xml", cfg: NamespacesConfig | None = None) -> Graph:
-    """Load an existing serialised graph from disk."""
+def load_graph(path: Path, fmt: str | None = None, cfg: NamespacesConfig | None = None) -> Graph:
+    """Load an existing serialised graph from disk. Format is auto-detected from extension."""
+    _EXT_FMT = {".nt": "nt", ".owl": "xml", ".xml": "xml", ".ttl": "turtle", ".n3": "n3"}
+    resolved_fmt = fmt or _EXT_FMT.get(Path(path).suffix.lower(), "xml")
     g = build_graph(cfg) if cfg is not None else Graph()
-    g.parse(str(path), format=fmt)
+    g.parse(str(path), format=resolved_fmt)
     return g
 
 
@@ -38,6 +40,25 @@ def save_graph(g: Graph, path: Path, fmt: str = "xml") -> None:
     """Serialise graph to disk, creating parent dirs as needed."""
     path.parent.mkdir(parents=True, exist_ok=True)
     g.serialize(destination=str(path), format=fmt)
+
+
+def save_graph_oxigraph(nt_path: Path, store_path: Path) -> None:
+    """Bulk-load an NT file into a persistent Oxigraph store directory."""
+    import shutil
+    import pyoxigraph as ox  # type: ignore[import]
+    if store_path.exists():
+        shutil.rmtree(store_path)
+    store_path.mkdir(parents=True)
+    ox_store = ox.Store(path=str(store_path))
+    with open(nt_path, "rb") as fh:
+        ox_store.bulk_load(fh, "application/n-triples")
+
+
+def load_graph_oxigraph(store_path: Path) -> "OxigraphAdapter":  # type: ignore[return]
+    """Open an existing Oxigraph store in read-only mode. Near-instant — no NT parsing needed."""
+    import pyoxigraph as ox  # type: ignore[import]
+    from water_ontology.oxigraph_adapter import OxigraphAdapter
+    return OxigraphAdapter(ox.Store.read_only(str(store_path)))
 
 
 def _declare_ontology_classes(g: Graph) -> None:
