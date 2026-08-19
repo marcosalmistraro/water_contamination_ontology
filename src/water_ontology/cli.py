@@ -127,6 +127,7 @@ def ingest(
         # Spatial join: link E-PRTR facilities to river basin districts
         if source == "all":
             import logging as _logging
+            from water_ontology.linkers.spatial_joiner import link_stations_to_rbds
             _sj_log = _logging.getLogger(__name__)
             rbd_path = raw_dir / "eu_river_basins.geojson"
             try:
@@ -135,6 +136,12 @@ def ingest(
                 _sj_log.info("[SpatialJoin] %s", sj_counts)
             except Exception as exc:
                 _sj_log.error("[SpatialJoin] Failed — skipping: %s", exc)
+            try:
+                sj2_counts = link_stations_to_rbds(graph, rbd_path)
+                all_counts.update({f"spatial_stations_{k}": v for k, v in sj2_counts.items()})
+                _sj_log.info("[SpatialJoin-Stations] %s", sj2_counts)
+            except Exception as exc:
+                _sj_log.error("[SpatialJoin-Stations] Failed — skipping: %s", exc)
 
         if validate and shacl_shapes.exists():
             from water_ontology.validation.shacl_validator import validate as shacl_validate

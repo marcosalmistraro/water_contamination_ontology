@@ -120,6 +120,14 @@ class MonitoringSitesIngester(BaseIngester):
         for row in self.graph.query(q):
             station_map[str(row[1])] = row[0]  # type: ignore[assignment]
 
+        if not station_map:
+            logger.warning(
+                "[%s] No MonitoringStation individuals found in graph — "
+                "run the waterbase ingester first, then re-run this ingester to patch coordinates.",
+                self.source_name,
+            )
+            return {"stations_patched": 0, "eionet_patched": 0, "wfd_patched": 0}
+
         # Patch pass 1
         p1 = _patch_stations(self.graph, station_map, eionet_sites)
         logger.info("[%s] Pass 1 (EIONET): patched %d stations", self.source_name, p1)
@@ -198,8 +206,8 @@ def _build_lookup(features: list[dict]) -> dict[str, dict]:
         if sid and lat is not None and lon is not None:
             try:
                 out[sid] = {"lat": float(lat), "lon": float(lon)}
-            except (TypeError, ValueError):
-                pass
+            except (TypeError, ValueError) as exc:
+                logger.warning("[MonitoringSites] Bad coordinates for site %r: %s", sid, exc)
     return out
 
 

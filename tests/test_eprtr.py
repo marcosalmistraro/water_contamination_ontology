@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
-from rdflib import Graph, URIRef
+from rdflib import Graph, RDF, URIRef
 
 from water_ontology.ingesters.eprtr import (
     EprtrIngester,
@@ -41,7 +41,7 @@ def test_pollutant_id_prefers_cas() -> None:
 
 def test_event_id_stable() -> None:
     row = pd.Series({"facility_id": "42", "pollutant_code": "NOx", "reporting_year": 2020})
-    assert _event_id(row) == "EPRTR:42:NOx:2020"
+    assert _event_id(row, "NOx") == "EPRTR:42:NOx:2020"
 
 
 # ── Mapper tests ───────────────────────────────────────────────────────────────
@@ -129,3 +129,72 @@ def test_emission_event_rejects_bad_medium() -> None:
             reporting_year=2020,
             medium="smoke",
         )
+
+
+# ── EprtrIngester.ingest() integration ────────────────────────────────────────
+
+def _make_eprtr_ingester(graph: Graph) -> EprtrIngester:
+    cfg = MagicMock()
+    cfg.local_zip = None
+    cfg.extract_to = None
+    cfg.encoding = "utf-8-sig"
+    cfg.chunksize = 50000
+    cfg.facilities_file = "F2_4_Water_Releases_Facilities.csv"
+    cfg.releases_file = "F2_4_Water_Releases_Facilities.csv"
+    return EprtrIngester(graph, cfg, raw_dir=Path("data/raw"))
+
+
+_FACILITIES_DF = pd.DataFrame([{
+    "FacilityInspireId": "FAC_INGEST_001",
+    "facilityName": "Test Plant",
+    "countryName": "DE",
+    "Latitude": 51.5,
+    "Longitude": 9.0,
+    "EPRTR_SectorCode": "A",
+}])
+
+_RELEASES_DF = pd.DataFrame([{
+    "facility_id": "FAC_INGEST_001",
+    "pollutant_name": "Nitrate",
+    "reporting_year": 2020,
+    "quantity_kg": 1500.0,
+    "medium": "WATER",
+}])
+
+
+class TestEprtrIngesterIngest:
+    def test_ingest_creates_facility(self, empty_graph: Graph) -> None:
+        ingester = _make_eprtr_ingester(empty_graph)
+        with patch.object(ingester, "_load_facilities", return_value=[
+            IndustrialFacility(facility_id="FAC_INGEST_001", name="Test Plant", country_code="DE", lat=51.5, lon=9.0)
+        ]):
+            with patch.object(ingester, "_iter_releases", return_value=iter([_RELEASES_DF])):
+                counts = ingester.ingest()
+
+        fac_iri = URIRef(f"{WCD}facility/FAC_INGEST_001")
+        assert (fac_iri, RDF.type, URIRef(f"{WC}IndustrialFacility")) in empty_graph
+        assert counts["facilities"] == 1
+
+    def test_ingest_creates_emission_event(self, empty_graph: Graph) -> None:
+        ingester = _make_eprtr_ingester(empty_graph)
+        with patch.object(ingester, "_load_facilities", return_value=[
+            IndustrialFacility(facility_id="FAC_INGEST_001", name="Test Plant", country_code="DE")
+        ]):
+            with patch.object(ingester, "_iter_releases", return_value=iter([_RELEASES_DF])):
+                counts = ingester.ingest()
+
+        assert counts["emission_events"] == 1
+        ev_class = URIRef(f"{WC}EmissionEvent")
+        assert any(True for _ in empty_graph.subjects(RDF.type, ev_class))
+
+    def test_ingest_deduplicates_pollutants(self, empty_graph: Graph) -> None:
+        two_rows = pd.concat([_RELEASES_DF, _RELEASES_DF], ignore_index=True)
+        ingester = _make_eprtr_ingester(empty_graph)
+        with patch.object(ingester, "_load_facilities", return_value=[
+            IndustrialFacility(facility_id="FAC_INGEST_001", name="Test Plant", country_code="DE")
+        ]):
+            with patch.object(ingester, "_iter_releases", return_value=iter([two_rows])):
+                counts = ingester.ingest()
+
+        assert counts["pollutants"] == 1  # same pollutant deduplicated
+        assert counts["emission_events"] == 2

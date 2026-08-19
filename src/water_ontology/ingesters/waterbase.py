@@ -125,13 +125,14 @@ class WaterbaseIngester(BaseIngester):
                 chunk = chunk.iloc[: max_rows - rows_processed]
             rows_processed += len(chunk)
             for _, row in chunk.iterrows():
-                wb_id = _str(row.get("waterBodyIdentifier", ""))
+                sid = _str(row.get("monitoringSiteIdentifier", ""))
+                # WISE6 disaggregated CSV omits waterBodyIdentifier; fall back to
+                # site ID as a proxy (each monitoring site monitors one water body).
+                wb_id = _str(row.get("waterBodyIdentifier", "")) or sid
                 if wb_id and wb_id not in wb_seen:
                     self._add_water_body(wb_id, row)
                     wb_seen.add(wb_id)
                     counts["water_bodies"] += 1
-
-                sid = _str(row.get("monitoringSiteIdentifier", ""))
                 if sid and sid not in station_seen:
                     self._add_station(sid, row, wb_id)
                     station_seen.add(sid)

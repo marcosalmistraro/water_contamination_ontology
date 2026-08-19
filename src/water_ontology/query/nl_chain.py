@@ -42,7 +42,7 @@ class NLChain:
     def __init__(
         self,
         graph: Graph,
-        model: str = "llama-3.3-70b-versatile",
+        model: str = "openai/gpt-oss-120b",
         temperature: float = 0.0,
         api_key: str | None = None,
     ) -> None:

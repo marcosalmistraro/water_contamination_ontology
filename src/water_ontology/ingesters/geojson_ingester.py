@@ -236,8 +236,8 @@ def _geom_to_wkt(geom: dict[str, Any]) -> str:
         if gtype == "MultiPoint":
             pts = " , ".join(f"({c[0]} {c[1]})" for c in coords)
             return f"MULTIPOINT ({pts})"
-    except (IndexError, TypeError):
-        pass
+    except (IndexError, TypeError) as exc:
+        logger.debug("[GeoJSON] Could not convert %s geometry to WKT: %s", gtype, exc)
     return ""
 
 

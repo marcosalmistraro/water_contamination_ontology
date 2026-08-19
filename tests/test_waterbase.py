@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import io
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
-from rdflib import URIRef
+from rdflib import RDF, URIRef
 
 from water_ontology.ingesters.waterbase import WaterbaseIngester, _str, _float
 
@@ -16,87 +16,98 @@ WC = "https://w3id.org/water-contamination/"
 SOSA = "http://www.w3.org/ns/sosa/"
 
 
-def _make_df() -> pd.DataFrame:
-    return pd.DataFrame(
-        [
-            {
-                "monitoringSiteIdentifier": "DE_SITE_001",
-                "monitoringSiteName": "Rhine at Bonn",
-                "lat": 50.73,
-                "lon": 7.09,
-                "waterBodyIdentifier": "DE_RW_1",
-                "waterBodyName": "Rhine",
-                "countryCode": "DE",
-                "parameterWaterBodyCategory": "RW",
-                "observedPropertyDeterminandCode": "EEA_3132",
-                "observedPropertyDeterminandLabel": "Nitrate",
-                "phenomenonTimeReferenceYear": 2019,
-                "resultMeanValue": 4.7,
-                "resultUom": "mg/L",
-            }
-        ]
-    )
+def _make_df(with_wb_id: bool = False) -> pd.DataFrame:
+    """Minimal WISE6 disaggregated row. with_wb_id tests explicit waterBodyIdentifier."""
+    row: dict = {
+        "monitoringSiteIdentifier": "DE_SITE_001",
+        "parameterWaterBodyCategory": "RW",
+        "observedPropertyDeterminandCode": "EEA_3132",
+        "observedPropertyDeterminandLabel": "Nitrate",
+        "phenomenonTimeSamplingDate": "2019-05-15",
+        "resultObservedValue": 4.7,
+        "resultUom": "mg/L",
+    }
+    if with_wb_id:
+        row["waterBodyIdentifier"] = "DE_RW_1"
+        row["waterBodyName"] = "Rhine"
+        row["countryCode"] = "DE"
+    return pd.DataFrame([row])
 
 
 def _make_ingester(empty_graph):  # type: ignore[no-untyped-def]
     cfg = MagicMock()
-    cfg.url = "http://example.com/waterbase.xlsx"
-    cfg.local_file = None
-    cfg.sheet_name = 0
-    ingester = WaterbaseIngester(empty_graph, cfg, raw_dir=MagicMock())
-    ingester.local_path = MagicMock()
-    return ingester
+    cfg.local_zip = None
+    cfg.extract_to = None
+    cfg.encoding = "utf-8-sig"
+    cfg.chunksize = 50000
+    cfg.max_rows = None
+    return WaterbaseIngester(empty_graph, cfg, raw_dir=Path("data/raw"))
+
+
+def _run_ingester(ingester, df: pd.DataFrame):  # type: ignore[no-untyped-def]
+    with patch.object(ingester, "_find_csv", return_value=Path("fake.csv")):
+        with patch("water_ontology.ingesters.waterbase.pd.read_csv", return_value=iter([df])):
+            return ingester.ingest()
 
 
 class TestWaterbaseIngester:
-    def test_water_body_triple_created(self, empty_graph):  # type: ignore[no-untyped-def]
+    def test_water_body_created_from_site_id_fallback(self, empty_graph):  # type: ignore[no-untyped-def]
+        """WISE6 disaggregated CSV has no waterBodyIdentifier; site ID is used as proxy."""
         ingester = _make_ingester(empty_graph)
-        with patch("pandas.read_excel", return_value=_make_df()):
-            ingester.ingest()
+        _run_ingester(ingester, _make_df())
+
+        wb_iri = URIRef(f"{WCD}waterbody/DE_SITE_001")
+        assert (wb_iri, RDF.type, URIRef(f"{WC}WaterBody")) in empty_graph
+
+    def test_water_body_type_set(self, empty_graph):  # type: ignore[no-untyped-def]
+        ingester = _make_ingester(empty_graph)
+        _run_ingester(ingester, _make_df())
+
+        wb_iri = URIRef(f"{WCD}waterbody/DE_SITE_001")
+        wb_type_prop = URIRef(f"{WC}waterBodyType")
+        types = list(empty_graph.objects(wb_iri, wb_type_prop))
+        assert len(types) == 1
+        assert str(types[0]) == "RW"
+
+    def test_water_body_created_from_explicit_identifier(self, empty_graph):  # type: ignore[no-untyped-def]
+        """When waterBodyIdentifier IS present, it takes precedence over site ID."""
+        ingester = _make_ingester(empty_graph)
+        _run_ingester(ingester, _make_df(with_wb_id=True))
 
         wb_iri = URIRef(f"{WCD}waterbody/DE_RW_1")
-        wb_class = URIRef(f"{WC}WaterBody")
-        from rdflib import RDF
-        assert (wb_iri, RDF.type, wb_class) in empty_graph
+        assert (wb_iri, RDF.type, URIRef(f"{WC}WaterBody")) in empty_graph
 
     def test_station_triple_created(self, empty_graph):  # type: ignore[no-untyped-def]
         ingester = _make_ingester(empty_graph)
-        with patch("pandas.read_excel", return_value=_make_df()):
-            ingester.ingest()
+        _run_ingester(ingester, _make_df())
 
         stn_iri = URIRef(f"{WCD}station/DE_SITE_001")
-        stn_class = URIRef(f"{WC}MonitoringStation")
-        from rdflib import RDF
-        assert (stn_iri, RDF.type, stn_class) in empty_graph
+        assert (stn_iri, RDF.type, URIRef(f"{WC}MonitoringStation")) in empty_graph
 
     def test_observation_triple_created(self, empty_graph):  # type: ignore[no-untyped-def]
         ingester = _make_ingester(empty_graph)
-        with patch("pandas.read_excel", return_value=_make_df()):
-            counts = ingester.ingest()
+        counts = _run_ingester(ingester, _make_df())
 
         assert counts["observations"] == 1
 
     def test_station_linked_to_water_body(self, empty_graph):  # type: ignore[no-untyped-def]
         ingester = _make_ingester(empty_graph)
-        with patch("pandas.read_excel", return_value=_make_df()):
-            ingester.ingest()
+        _run_ingester(ingester, _make_df())
 
         stn_iri = URIRef(f"{WCD}station/DE_SITE_001")
-        wb_iri = URIRef(f"{WCD}waterbody/DE_RW_1")
-        monitors = URIRef(f"{WC}monitors")
-        assert (stn_iri, monitors, wb_iri) in empty_graph
+        wb_iri = URIRef(f"{WCD}waterbody/DE_SITE_001")
+        assert (stn_iri, URIRef(f"{WC}monitors"), wb_iri) in empty_graph
 
     def test_deduplicates_stations(self, empty_graph):  # type: ignore[no-untyped-def]
         df = pd.concat([_make_df(), _make_df()], ignore_index=True)
         ingester = _make_ingester(empty_graph)
-        with patch("pandas.read_excel", return_value=df):
-            counts = ingester.ingest()
+        counts = _run_ingester(ingester, df)
 
-        assert counts["stations"] == 1  # deduplicated
+        assert counts["stations"] == 1
+        assert counts["water_bodies"] == 1
 
 
 def test_str_handles_nan() -> None:
-    import math
     assert _str(float("nan")) == ""
     assert _str("hello") == "hello"
 
