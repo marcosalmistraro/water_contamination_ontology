@@ -144,6 +144,8 @@ _EXAMPLE_QUESTIONS = [
     "How many industrial facilities are located in the Rhine river basin?",
     "What are the top 5 pollutants by total emission quantity across all countries?",
     "List monitoring stations in France with their water body names.",
+    "Which country reported the highest total emissions in 2023?",
+    "How many emission events involved mercury across all years?",
 ]
 
 with tab_chat:
@@ -153,17 +155,24 @@ with tab_chat:
         if "messages" not in st.session_state:
             st.session_state.messages = []
 
-        # Example questions shown when chat is empty
-        if not st.session_state.messages:
-            st.caption("Try asking:")
-            _cols = st.columns(2)
-            for _i, _q in enumerate(_EXAMPLE_QUESTIONS):
-                if _cols[_i % 2].button(_q, key=f"ex_{_i}", use_container_width=True):
-                    st.session_state.messages.append({"role": "user", "content": _q})
-                    st.rerun()
+        st.markdown("#### Ask a question")
+
+        with st.container(border=True):
+            st.caption("❓ Ready-made — pick from a list of pre-written questions.")
+            _selected = st.selectbox(
+                "Ready-made questions",
+                options=["— pick an example question —"] + _EXAMPLE_QUESTIONS,
+                label_visibility="collapsed",
+                key="example_select",
+            )
+            if _selected != "— pick an example question —":
+                st.session_state.messages.append({"role": "user", "content": _selected})
+                # Reset the selectbox back to placeholder
+                st.session_state["example_select"] = "— pick an example question —"
+                st.rerun()
 
         # New question (chat_input always renders at page bottom)
-        if prompt := st.chat_input("Ask about facilities, emissions, or water quality…"):
+        if prompt := st.chat_input("Or type your own question…"):
             st.session_state.messages.append({"role": "user", "content": prompt})
             with st.spinner("Querying knowledge graph…"):
                 try:
