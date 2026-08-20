@@ -56,8 +56,8 @@ _WRITE_KEYWORDS = re.compile(
     r"\b(INSERT|DELETE|DROP|CLEAR|CREATE|COPY|MOVE|ADD|LOAD|MODIFY)\b",
     re.IGNORECASE,
 )
-# Matches SELECT anywhere after optional PREFIX/BASE declarations
-_SELECT_RE = re.compile(r"^\s*(PREFIX\s+\S+\s*<[^>]+>\s*)*SELECT\b", re.IGNORECASE | re.DOTALL)
+_SELECT_RE = re.compile(r"\bSELECT\b", re.IGNORECASE)
+_NON_SELECT_RE = re.compile(r"\b(CONSTRUCT|ASK|DESCRIBE)\b", re.IGNORECASE)
 _LIMIT_RE = re.compile(r"\bLIMIT\s+(\d+)", re.IGNORECASE)
 _IRI_RE = re.compile(r"<(https?://[^>]+)>")
 
@@ -100,7 +100,12 @@ def _check_no_write_ops(sparql: str) -> None:
 
 
 def _check_is_select(sparql: str) -> None:
-    if not _SELECT_RE.match(sparql):
+    if not _SELECT_RE.search(sparql):
+        raise GuardrailError(
+            "Only SPARQL SELECT queries are supported. "
+            "CONSTRUCT, ASK, and DESCRIBE are not permitted."
+        )
+    if _NON_SELECT_RE.search(sparql):
         raise GuardrailError(
             "Only SPARQL SELECT queries are supported. "
             "CONSTRUCT, ASK, and DESCRIBE are not permitted."

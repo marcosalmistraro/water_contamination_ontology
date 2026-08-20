@@ -69,11 +69,13 @@ Object properties:
 
 _SPARQL_NOTES = """
 SPARQL notes:
+- You MUST generate a SELECT query. Never use CONSTRUCT, ASK, or DESCRIBE.
 - Always declare the PREFIX lines above at the top of every query.
 - Individual IRIs follow the pattern wcd:facility/<id>, wcd:emission/<id>, etc.
   Do NOT hard-code individual IRIs — use triple patterns to find them.
 - Use OPTIONAL for properties that may be absent (e.g. geo:lat, wc:nutsRegion).
 - Always include a LIMIT clause.
+- For aggregations (average, count, sum) use SELECT with GROUP BY and aggregate functions like AVG(), COUNT(), SUM().
 """
 
 # ── Public builders ───────────────────────────────────────────────────────────

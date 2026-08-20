@@ -51,12 +51,33 @@ function(row) {
 }
 """
 
+_FACILITY_CLUSTER_FN = """
+function(cluster) {
+    var n = cluster.getChildCount();
+    var d = n < 100 ? 34 : n < 1000 ? 42 : 52;
+    return L.divIcon({
+        html: '<div style="width:'+d+'px;height:'+d+'px;border-radius:50%;background:rgba(231,76,60,0.88);border:2px solid rgba(255,255,255,0.55);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:11px;box-sizing:border-box">'+n+'</div>',
+        className: '', iconSize: L.point(d, d)
+    });
+}
+"""
+
+_STATION_CLUSTER_FN = """
+function(cluster) {
+    var n = cluster.getChildCount();
+    var d = n < 100 ? 34 : n < 1000 ? 42 : 52;
+    return L.divIcon({
+        html: '<div style="width:'+d+'px;height:'+d+'px;border-radius:50%;background:rgba(41,128,185,0.88);border:2px solid rgba(255,255,255,0.55);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:11px;box-sizing:border-box">'+n+'</div>',
+        className: '', iconSize: L.point(d, d)
+    });
+}
+"""
+
 
 def build_map(graph: Any) -> folium.Map:
     m = folium.Map(location=[52.0, 10.0], zoom_start=4, tiles="CartoDB positron")
     _add_facilities(m, graph)
     _add_stations(m, graph)
-    _add_legend(m)
     return m
 
 
@@ -72,6 +93,7 @@ def _add_facilities(m: folium.Map, graph: Any) -> None:
                       str(row.get("country") or "")])
     if data:
         FastMarkerCluster(data=data, callback=_FACILITY_CB,
+                          icon_create_function=_FACILITY_CLUSTER_FN,
                           name="Industrial Facilities").add_to(m)
 
 
@@ -85,33 +107,10 @@ def _add_stations(m: folium.Map, graph: Any) -> None:
         data.append([lat, lon, str(row.get("name") or "")])
     if data:
         FastMarkerCluster(data=data, callback=_STATION_CB,
+                          icon_create_function=_STATION_CLUSTER_FN,
                           name="Monitoring Stations").add_to(m)
-    folium.LayerControl().add_to(m)
 
 
-def _add_legend(m: folium.Map) -> None:
-    legend_html = """
-    <div style="
-        position: fixed; bottom: 36px; left: 36px; z-index: 1000;
-        background: rgba(255,255,255,0.95); padding: 12px 16px;
-        border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.18);
-        font-family: sans-serif; font-size: 13px; line-height: 2;
-        min-width: 180px;
-    ">
-        <div style="font-weight:700; margin-bottom:4px;">Legend</div>
-        <div>
-            <svg width="14" height="14" style="vertical-align:middle;margin-right:6px">
-                <circle cx="7" cy="7" r="6" fill="#e74c3c" fill-opacity="0.85"/>
-            </svg>Industrial Facility
-        </div>
-        <div>
-            <svg width="14" height="14" style="vertical-align:middle;margin-right:6px">
-                <circle cx="7" cy="7" r="6" fill="#2980b9" fill-opacity="0.85"/>
-            </svg>Monitoring Station
-        </div>
-    </div>
-    """
-    m.get_root().html.add_child(folium.Element(legend_html))
 
 
 def _float(val: Any) -> float | None:

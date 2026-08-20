@@ -54,19 +54,42 @@ class NLChain:
 
     def ask(self, question: str) -> ChainResult:
         """Run the full chain and return a structured result."""
+        from water_ontology.query.guardrails import GuardrailError
+        from water_ontology.query.engine import QueryResult
+
         logger.info("[NLChain] Question: %s", question)
 
-        sparql = self._generate_sparql(question)
-        logger.info("[NLChain] Generated SPARQL:\n%s", sparql)
+        # Attempt SPARQL generation — retry once if guardrails fire
+        sparql = ""
+        query_result: QueryResult | None = None
+        for attempt in range(2):
+            try:
+                sparql = self._generate_sparql(question, force_select=(attempt == 1))
+                logger.info("[NLChain] Generated SPARQL (attempt %d):\n%s", attempt + 1, sparql)
+                query_result = self.engine.run(sparql)
+                logger.info("[NLChain] Query returned %d row(s)", query_result.row_count)
+                break
+            except GuardrailError as exc:
+                logger.warning("[NLChain] Guardrail blocked query (attempt %d): %s", attempt + 1, exc)
+                if attempt == 1:
+                    return ChainResult(
+                        question=question, sparql=sparql,
+                        query_result=QueryResult(columns=[], rows=[], row_count=0),
+                        answer="I couldn't find data in the knowledge graph to answer that question. Try asking about specific facilities, pollutants, countries, or emission quantities.",
+                    )
+            except Exception as exc:
+                logger.error("[NLChain] Query execution failed: %s", exc)
+                return ChainResult(
+                    question=question, sparql=sparql,
+                    query_result=QueryResult(columns=[], rows=[], row_count=0),
+                    answer="I ran into an issue while querying the knowledge graph. Try rephrasing your question.",
+                )
 
-        query_result = self.engine.run(sparql)
-        logger.info("[NLChain] Query returned %d row(s)", query_result.row_count)
-
-        answer = self._generate_answer(question, query_result)
+        answer = self._generate_answer(question, query_result)  # type: ignore[arg-type]
         return ChainResult(
             question=question,
             sparql=sparql,
-            query_result=query_result,
+            query_result=query_result,  # type: ignore[arg-type]
             answer=answer,
         )
 
@@ -85,16 +108,19 @@ class NLChain:
             api_key=self._api_key,  # type: ignore[arg-type]
         )
 
-    def _generate_sparql(self, question: str) -> str:
+    def _generate_sparql(self, question: str, force_select: bool = False) -> str:
         from langchain_core.messages import HumanMessage, SystemMessage
+
+        user_content = question
+        if force_select:
+            user_content += "\n\n[IMPORTANT: You MUST return a SPARQL SELECT query. Do not use ASK, CONSTRUCT, or DESCRIBE under any circumstances.]"
 
         messages = [
             SystemMessage(content=sparql_generation_prompt()),
-            HumanMessage(content=question),
+            HumanMessage(content=user_content),
         ]
         response = self._llm.invoke(messages)  # type: ignore[union-attr]
         sparql = str(response.content).strip()
-        # Strip markdown fences if the model adds them despite the instruction
         sparql = _strip_fences(sparql)
         return sparql
 

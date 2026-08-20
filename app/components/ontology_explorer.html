@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Water Contamination Ontology</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f5f5f3; --bg2: #ffffff; --border: rgba(0,0,0,0.10); --border2: rgba(0,0,0,0.18);
+    --text: #1e1e1c; --text2: #5a5a56; --text3: #9a9a96;
+    --shadow: 0 1px 4px rgba(0,0,0,0.09), 0 0 0 0.5px rgba(0,0,0,0.07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a18; --bg2: #232320; --border: rgba(255,255,255,0.09); --border2: rgba(255,255,255,0.20);
+      --text: #ddddd8; --text2: #9a9a96; --text3: #5e5e5a;
+      --shadow: 0 1px 4px rgba(0,0,0,0.4), 0 0 0 0.5px rgba(255,255,255,0.05);
+    }
+  }
+  html, body { height: 100%; font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); }
+  body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+  #header {
+    padding: 9px 16px; display: flex; align-items: center; gap: 12px;
+    background: var(--bg2); border-bottom: 0.5px solid var(--border);
+    flex-shrink: 0; flex-wrap: wrap;
+  }
+  #header h1 { font-size: 12.5px; font-weight: 500; letter-spacing: -0.01em; white-space: nowrap; }
+  #header .sub { font-size: 11px; color: var(--text3); white-space: nowrap; }
+  #filters { display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; align-items: center; }
+  .fpill {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; padding: 3px 9px; border-radius: 99px;
+    border: 0.5px solid var(--border2); background: transparent;
+    color: var(--text3); cursor: pointer; transition: all .12s; user-select: none; white-space: nowrap;
+  }
+  .fpill .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; opacity: 0.35; transition: opacity .12s; }
+  .fpill.on { color: var(--text2); }
+  .fpill.on .dot { opacity: 1; }
+  .fpill:hover { border-color: var(--text2); color: var(--text); }
+
+  #canvas-wrap { flex: 1; position: relative; overflow: hidden; }
+  canvas { width: 100%; height: 100%; display: block; cursor: grab; }
+  canvas:active { cursor: grabbing; }
+
+  #tt {
+    position: absolute; pointer-events: none;
+    background: var(--bg2); border: 0.5px solid var(--border2);
+    border-radius: 9px; padding: 10px 14px;
+    font-size: 11.5px; max-width: 240px; display: none;
+    box-shadow: var(--shadow); z-index: 20; line-height: 1.6;
+  }
+  #tt-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; color: var(--text); }
+  #tt-mod  { font-size: 10px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; margin-bottom: 5px; }
+  #tt-desc { color: var(--text2); font-size: 11px; margin-bottom: 6px; }
+  #tt-props { font-size: 10.5px; color: var(--text3); border-top: 0.5px solid var(--border); padding-top: 5px; }
+  #tt-props span { display: inline-block; background: var(--bg); border-radius: 4px; padding: 1px 5px; margin: 1px 2px 1px 0; font-family: ui-monospace, monospace; font-size: 10px; }
+
+  #legend {
+    position: absolute; bottom: 12px; left: 12px;
+    background: var(--bg2); border: 0.5px solid var(--border);
+    border-radius: 9px; padding: 9px 12px;
+    font-size: 11px; display: flex; flex-direction: column; gap: 4px;
+    box-shadow: var(--shadow);
+  }
+  .lr { display: flex; align-items: center; gap: 7px; color: var(--text2); }
+  .ldot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .lsep { border-top: 0.5px solid var(--border); margin: 2px 0; }
+  svg.lsvg { width: 22px; height: 10px; flex-shrink: 0; }
+
+  #ctrl { position: absolute; bottom: 12px; right: 12px; display: flex; flex-direction: column; gap: 4px; }
+  .cb {
+    width: 28px; height: 28px; border-radius: 7px;
+    border: 0.5px solid var(--border2); background: var(--bg2);
+    color: var(--text); font-size: 14px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--shadow); transition: background .1s;
+  }
+  .cb:hover { background: var(--bg); }
+  #hint { position: absolute; top: 8px; right: 10px; font-size: 10px; color: var(--text3); }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <h1>Water Contamination Ontology</h1>
+    <div class="sub">8 OWL classes · 7 object properties · 3.1M triples</div>
+  </div>
+  <div id="filters"></div>
+</div>
+
+<div id="canvas-wrap">
+  <canvas id="c"></canvas>
+
+  <div id="tt">
+    <div id="tt-name"></div>
+    <div id="tt-mod"></div>
+    <div id="tt-desc"></div>
+    <div id="tt-props"></div>
+  </div>
+
+  <div id="legend">
+    <div class="lr"><span class="ldot" style="background:#1a6fa8"></span>Industrial</div>
+    <div class="lr"><span class="ldot" style="background:#0f6e56"></span>Water Quality</div>
+    <div class="lr"><span class="ldot" style="background:#854F0B"></span>Pollutants</div>
+    <div class="lr"><span class="ldot" style="background:#993C1D"></span>Spatial</div>
+    <div class="lr"><span class="ldot" style="background:#534AB7"></span>Regulatory</div>
+    <div class="lsep"></div>
+    <div class="lr">
+      <svg class="lsvg" viewBox="0 0 22 10"><defs><marker id="la" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path d="M1 1L7 4L1 7" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></marker></defs><line x1="1" y1="5" x2="21" y2="5" stroke="currentColor" stroke-width="1.2" marker-end="url(#la)"/></svg>
+      object property
+    </div>
+    <div class="lr">
+      <svg class="lsvg" viewBox="0 0 22 10"><defs><marker id="lb" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path d="M1 1L7 4L1 7" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></marker></defs><line x1="1" y1="5" x2="21" y2="5" stroke="currentColor" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#lb)"/></svg>
+      data property
+    </div>
+  </div>
+
+  <div id="ctrl">
+    <button class="cb" id="bp">+</button>
+    <button class="cb" id="bm">−</button>
+    <button class="cb" id="br" style="font-size:11px">↺</button>
+  </div>
+  <div id="hint">scroll to zoom · drag to pan</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+const MODS = {
+  'industrial': { color: '#1a6fa8', label: 'Industrial' },
+  'water':      { color: '#0f6e56', label: 'Water Quality' },
+  'pollution':  { color: '#854F0B', label: 'Pollutants' },
+  'spatial':    { color: '#993C1D', label: 'Spatial' },
+  'regulatory': { color: '#534AB7', label: 'Regulatory' },
+};
+
+const NODES = [
+  {
+    id: 'IndustrialFacility', mod: 'industrial', r: 30,
+    desc: 'EU industrial facility regulated under E-PRTR. Central hub of the ontology — linked to emission events, its catchment, and geo-located via W3C geo coordinates.',
+    props: ['facilityId', 'facilityName', 'countryCode', 'geo:lat', 'geo:long'],
+    count: '7,615 individuals'
+  },
+  {
+    id: 'EmissionEvent', mod: 'industrial', r: 22,
+    desc: 'A single annual emission record: one facility, one pollutant, one year, one medium (air/water/land). Reported under E-PRTR v16.',
+    props: ['reportingYear', 'quantityKg', 'medium'],
+    count: '254,156 individuals'
+  },
+  {
+    id: 'MonitoringStation', mod: 'water', r: 26,
+    desc: 'EU water quality monitoring station from EEA Waterbase WISE6. Geo-coordinates patched via WISE sites two-pass crosswalk. Links to its monitored water body.',
+    props: ['stationName', 'geo:lat', 'geo:long'],
+    count: '2,168 individuals'
+  },
+  {
+    id: 'WaterBody', mod: 'water', r: 21,
+    desc: 'A monitored water body (river, lake, estuary) identified by WISE6 water body code. Linked to a monitoring station and its enclosing River Basin District.',
+    props: ['waterBodyName', 'waterBodyCode'],
+    count: ''
+  },
+  {
+    id: 'Pollutant', mod: 'pollution', r: 21,
+    desc: 'A chemical substance emitted or monitored. Identified by name and CAS number. Links to compliance thresholds defined in the IED BREF reference document.',
+    props: ['pollutantName', 'casNumber'],
+    count: '65 pollutants'
+  },
+  {
+    id: 'ComplianceThreshold', mod: 'pollution', r: 15,
+    desc: 'An emission limit value extracted from the IED BREF for Large Combustion Plants. Specifies the allowed quantity for a given pollutant under BAT conclusions.',
+    props: ['thresholdValue', 'unit', 'applicability'],
+    count: '90 individuals'
+  },
+  {
+    id: 'Catchment', mod: 'spatial', r: 19,
+    desc: 'An EU River Basin District — the fundamental hydrological unit of the Water Framework Directive. Used to spatially link facilities and water bodies.',
+    props: ['rbdName', 'rbdCode', 'countryCode'],
+    count: '209 RBDs'
+  },
+  {
+    id: 'RegulationDocument', mod: 'regulatory', r: 15,
+    desc: 'A regulatory source document. Currently the IED BREF for Large Combustion Plants (2017). Linked to compliance thresholds via regulatedBy.',
+    props: ['docTitle', 'docYear', 'publisher'],
+    count: ''
+  },
+];
+
+const LINKS = [
+  { s: 'IndustrialFacility',  t: 'EmissionEvent',       lbl: 'hasEmissionEvent',     type: 'prop' },
+  { s: 'IndustrialFacility',  t: 'Catchment',            lbl: 'locatedInCatchment',   type: 'prop' },
+  { s: 'EmissionEvent',       t: 'Pollutant',            lbl: 'involvesPollutant',    type: 'prop' },
+  { s: 'MonitoringStation',   t: 'WaterBody',            lbl: 'monitors',             type: 'prop' },
+  { s: 'WaterBody',           t: 'Catchment',            lbl: 'drainsToCatchment',    type: 'prop' },
+  { s: 'Pollutant',           t: 'ComplianceThreshold',  lbl: 'hasThreshold',         type: 'prop' },
+  { s: 'ComplianceThreshold', t: 'RegulationDocument',   lbl: 'regulatedBy',          type: 'prop' },
+];
+
+// ── Canvas / state ────────────────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const wrap = document.getElementById('canvas-wrap');
+const dpr = window.devicePixelRatio || 1;
+let W, H, tx = 0, ty = 0, tk = 1;
+let sim, simNodes = [], simLinks = [];
+let hovN = null;
+let dragN = null, dragOff = { x: 0, y: 0 };
+let panning = false, panS = null, panO = null;
+let activeM = new Set(Object.keys(MODS));
+
+function resize() {
+  W = wrap.clientWidth; H = wrap.clientHeight;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+// ── Filters ───────────────────────────────────────────────────────────────────
+const filtersEl = document.getElementById('filters');
+Object.entries(MODS).forEach(([key, mod]) => {
+  const p = document.createElement('button');
+  p.className = 'fpill on'; p.dataset.key = key;
+  p.innerHTML = `<span class="dot" style="background:${mod.color}"></span>${mod.label}`;
+  p.addEventListener('click', () => {
+    activeM.has(key) ? activeM.delete(key) : activeM.add(key);
+    p.classList.toggle('on', activeM.has(key));
+    rebuild();
+  });
+  filtersEl.appendChild(p);
+});
+
+// ── Simulation ────────────────────────────────────────────────────────────────
+function rebuild() {
+  const vis = new Set(NODES.filter(n => activeM.has(n.mod)).map(n => n.id));
+  simNodes = NODES.filter(n => vis.has(n.id)).map(n => {
+    const ex = simNodes.find(e => e.id === n.id);
+    return ex ? { ...n, x: ex.x, y: ex.y, vx: ex.vx, vy: ex.vy } : { ...n };
+  });
+  simLinks = LINKS
+    .filter(l => vis.has(l.s) && vis.has(l.t))
+    .map(l => ({ source: l.s, target: l.t, lbl: l.lbl, type: l.type }));
+
+  if (sim) sim.stop();
+  sim = d3.forceSimulation(simNodes)
+    .force('link', d3.forceLink(simLinks).id(d => d.id)
+      .distance(d => d.type === 'data' ? 80 : 140)
+      .strength(0.45))
+    .force('charge', d3.forceManyBody().strength(d => -d.r * 28))
+    .force('center', d3.forceCenter(W / 2, H / 2))
+    .force('collision', d3.forceCollide(d => d.r + 22))
+    .alphaDecay(0.022)
+    .on('tick', draw);
+}
+
+// ── Draw ──────────────────────────────────────────────────────────────────────
+function isDark() { return matchMedia('(prefers-color-scheme: dark)').matches; }
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+  ctx.translate(tx, ty);
+  ctx.scale(tk, tk);
+
+  const dark = isDark();
+  const edgeCol  = dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.20)';
+  const edgeDash  = dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.13)';
+  const lblCol   = dark ? '#b8b6ae' : '#1e1e1c';
+  const nodeStroke = dark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.18)';
+
+  // edges
+  simLinks.forEach(l => {
+    const s = l.source, t = l.target;
+    if (!s.x || !t.x) return;
+    const hl = hovN && (s.id === hovN.id || t.id === hovN.id);
+
+    ctx.setLineDash(l.type === 'data' ? [4, 3] : []);
+    ctx.beginPath();
+    ctx.moveTo(s.x, s.y);
+    ctx.lineTo(t.x, t.y);
+    ctx.strokeStyle = l.type === 'data' ? edgeDash : edgeCol;
+    ctx.lineWidth = hl ? 1.8 : 1.0;
+    ctx.globalAlpha = hl ? 1 : 0.72;
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+
+    // arrowhead
+    const ang = Math.atan2(t.y - s.y, t.x - s.x);
+    const ar = t.r + 3;
+    const ax = t.x - Math.cos(ang) * ar, ay = t.y - Math.sin(ang) * ar;
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(ax - 8 * Math.cos(ang - 0.38), ay - 8 * Math.sin(ang - 0.38));
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(ax - 8 * Math.cos(ang + 0.38), ay - 8 * Math.sin(ang + 0.38));
+    ctx.strokeStyle = l.type === 'data' ? edgeDash : edgeCol;
+    ctx.lineWidth = hl ? 1.4 : 0.9;
+    ctx.globalAlpha = hl ? 1 : 0.68;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    if (hl) {
+      const mx2 = (s.x + t.x) / 2, my2 = (s.y + t.y) / 2;
+      let rot = Math.atan2(t.y - s.y, t.x - s.x);
+      if (rot > Math.PI / 2 || rot < -Math.PI / 2) rot += Math.PI;
+      ctx.save();
+      ctx.translate(mx2, my2);
+      ctx.rotate(rot);
+      ctx.font = '8.5px system-ui, sans-serif';
+      ctx.fillStyle = lblCol;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.globalAlpha = 0.88;
+      ctx.shadowColor = dark ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.9)';
+      ctx.shadowBlur = 3;
+      ctx.fillText(l.lbl, 0, -4);
+      ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+  });
+
+  // nodes
+  simNodes.forEach(n => {
+    const col = MODS[n.mod]?.color || '#888';
+    const isH = hovN && hovN.id === n.id;
+
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+    ctx.fillStyle = col;
+    ctx.globalAlpha = dark ? 0.82 : 0.88;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+    ctx.strokeStyle = isH ? (dark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.60)') : nodeStroke;
+    ctx.lineWidth = isH ? 2.5 : 1.0;
+    ctx.stroke();
+
+    const fs = Math.min(10.5, n.r * 0.66);
+    ctx.font = `${isH ? 500 : 400} ${fs}px system-ui, sans-serif`;
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.45)';
+    ctx.shadowBlur = 2;
+
+    // split CamelCase label into two lines if node is large enough
+    const parts = n.id.match(/[A-Z][a-z]*/g) || [n.id];
+    if (parts.length >= 2 && n.r >= 18) {
+      const mid = Math.ceil(parts.length / 2);
+      const l1 = parts.slice(0, mid).join('');
+      const l2 = parts.slice(mid).join('');
+      if (l2) {
+        ctx.fillText(l1, n.x, n.y - fs * 0.65);
+        ctx.fillText(l2, n.x, n.y + fs * 0.65);
+      } else {
+        ctx.fillText(l1, n.x, n.y);
+      }
+    } else {
+      ctx.fillText(n.id.length > 14 ? n.id.slice(0, 13) + '…' : n.id, n.x, n.y);
+    }
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+  });
+
+  ctx.restore();
+}
+
+// ── Interaction ───────────────────────────────────────────────────────────────
+function simPt(sx, sy) { return { x: (sx - tx) / tk, y: (sy - ty) / tk }; }
+function hitNode(sx, sy) {
+  const p = simPt(sx, sy);
+  return simNodes.find(n => Math.hypot(n.x - p.x, n.y - p.y) < n.r + 7);
+}
+
+const tt = document.getElementById('tt');
+canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+
+  if (dragN) {
+    const p = simPt(mx, my);
+    dragN.x = p.x - dragOff.x; dragN.y = p.y - dragOff.y;
+    dragN.fx = dragN.x; dragN.fy = dragN.y;
+    sim.alpha(0.08).restart();
+    return;
+  }
+  if (panning) { tx = panO.x + (mx - panS.x); ty = panO.y + (my - panS.y); draw(); return; }
+
+  const n = hitNode(mx, my);
+  hovN = n || null;
+  canvas.style.cursor = n ? 'pointer' : 'grab';
+
+  if (n) {
+    tt.style.display = 'block';
+    let L = mx + 14, T = my - 10;
+    if (L + 250 > W) L = mx - 254;
+    if (T + 150 > H) T = my - 150;
+    tt.style.left = L + 'px'; tt.style.top = T + 'px';
+    document.getElementById('tt-name').textContent = n.id;
+    const mod = MODS[n.mod];
+    const modEl = document.getElementById('tt-mod');
+    modEl.style.color = mod?.color || '#888';
+    modEl.textContent = (mod?.label || n.mod) + (n.count ? ' · ' + n.count : '');
+    document.getElementById('tt-desc').textContent = n.desc;
+    const propsEl = document.getElementById('tt-props');
+    if (n.props && n.props.length) {
+      propsEl.innerHTML = 'Properties: ' + n.props.map(p => `<span>${p}</span>`).join('');
+    } else {
+      propsEl.innerHTML = '';
+    }
+  } else {
+    tt.style.display = 'none';
+  }
+  draw();
+});
+
+canvas.addEventListener('mousedown', e => {
+  const r = canvas.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  const n = hitNode(mx, my);
+  if (n) { dragN = n; const p = simPt(mx, my); dragOff = { x: p.x - n.x, y: p.y - n.y }; }
+  else { panning = true; panS = { x: mx, y: my }; panO = { x: tx, y: ty }; canvas.style.cursor = 'grabbing'; }
+});
+
+window.addEventListener('mouseup', () => {
+  if (dragN) { dragN.fx = null; dragN.fy = null; dragN = null; }
+  panning = false; panS = null; canvas.style.cursor = 'grab';
+});
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const r = canvas.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  const f = e.deltaY < 0 ? 1.1 : 0.91;
+  const nk = Math.max(0.25, Math.min(4, tk * f));
+  tx = mx - (mx - tx) * nk / tk;
+  ty = my - (my - ty) * nk / tk;
+  tk = nk; draw();
+}, { passive: false });
+
+document.getElementById('bp').addEventListener('click', () => {
+  const f = 1.25; tx = W/2-(W/2-tx)*f; ty = H/2-(H/2-ty)*f; tk = Math.min(4,tk*f); draw();
+});
+document.getElementById('bm').addEventListener('click', () => {
+  const f = 0.8; tx = W/2-(W/2-tx)*f; ty = H/2-(H/2-ty)*f; tk = Math.max(0.25,tk*f); draw();
+});
+document.getElementById('br').addEventListener('click', () => { tx=0;ty=0;tk=1; rebuild(); });
+
+window.addEventListener('resize', () => {
+  resize();
+  if (sim) { sim.force('center', d3.forceCenter(W/2,H/2)); sim.alpha(0.3).restart(); }
+});
+
+resize();
+rebuild();
+</script>
+</body>
+</html>
