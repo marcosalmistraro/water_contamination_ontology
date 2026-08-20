@@ -410,22 +410,17 @@ with tab_sources:
 
     for key, meta in _SOURCES_META.items():
         cfg = src_cfg.sources.get(key)
-        local_path = None
-        if cfg:
-            raw = getattr(cfg, meta["local_key"], None)
-            local_path = Path(raw) if raw else None
 
-        with st.container(border=True):
-            hcol, bcol = st.columns([8, 1])
-            with hcol:
-                st.markdown(f"**{meta['label']}**")
-                st.caption(f"Provider: {meta['provider']} · Format: {meta['format']}")
-            with bcol:
-                if cfg:
-                    st.link_button("Download ↗", url=cfg.url, use_container_width=True)
-
-            st.markdown(meta["desc"])
-            st.markdown(f"**How it is used:** {meta['usage']}")
+        st.divider()
+        hcol, bcol = st.columns([8, 1])
+        with hcol:
+            st.markdown(f"**{meta['label']}**")
+            st.caption(f"Provider: {meta['provider']} · Format: {meta['format']}")
+        with bcol:
+            if cfg:
+                st.link_button("Download ↗", url=cfg.url, use_container_width=True)
+        st.markdown(meta["desc"])
+        st.markdown(f"**How it is used:** {meta['usage']}")
 
 # ── Architecture tab ──────────────────────────────────────────────────────────
 
