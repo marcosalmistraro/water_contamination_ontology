@@ -78,6 +78,76 @@ SPARQL notes:
 - For aggregations (average, count, sum) use SELECT with GROUP BY and aggregate functions like AVG(), COUNT(), SUM().
 """
 
+_EXAMPLES = """
+EXAMPLES — study these before writing a query.
+
+Q: Which facilities in Germany emitted the most nitrogen in 2022?
+A:
+PREFIX wc: <https://w3id.org/water-contamination/>
+SELECT ?name (SUM(?qty) AS ?total) WHERE {
+    ?f a wc:IndustrialFacility ;
+       wc:facilityName ?name ;
+       wc:countryCode "DE" ;
+       wc:hasEmissionEvent ?e .
+    ?e wc:reportingYear 2022 ;
+       wc:quantityKg ?qty ;
+       wc:involvesPollutant ?p .
+    ?p wc:pollutantName ?pname .
+    FILTER(CONTAINS(LCASE(STR(?pname)), "nitrogen"))
+}
+GROUP BY ?name
+ORDER BY DESC(?total)
+LIMIT 10
+
+Q: How many industrial facilities are there per country?
+A:
+PREFIX wc: <https://w3id.org/water-contamination/>
+SELECT ?country (COUNT(DISTINCT ?f) AS ?count) WHERE {
+    ?f a wc:IndustrialFacility ;
+       wc:countryCode ?country .
+}
+GROUP BY ?country
+ORDER BY DESC(?count)
+LIMIT 50
+
+Q: What are the top 5 pollutants by total emission quantity across all years?
+A:
+PREFIX wc: <https://w3id.org/water-contamination/>
+SELECT ?pname (SUM(?qty) AS ?total) WHERE {
+    ?e a wc:EmissionEvent ;
+       wc:quantityKg ?qty ;
+       wc:involvesPollutant ?p .
+    ?p wc:pollutantName ?pname .
+}
+GROUP BY ?pname
+ORDER BY DESC(?total)
+LIMIT 5
+
+Q: List monitoring stations in France with their water body names.
+A:
+PREFIX wc: <https://w3id.org/water-contamination/>
+SELECT ?station ?waterBody WHERE {
+    ?s a wc:MonitoringStation ;
+       wc:stationName ?station ;
+       wc:countryCode "FR" ;
+       wc:monitors ?wb .
+    OPTIONAL { ?wb wc:waterBodyName ?waterBody . }
+}
+LIMIT 50
+
+Q: Which river basins contain the most industrial facilities?
+A:
+PREFIX wc: <https://w3id.org/water-contamination/>
+SELECT ?rbdName (COUNT(DISTINCT ?f) AS ?count) WHERE {
+    ?f a wc:IndustrialFacility ;
+       wc:locatedInCatchment ?c .
+    ?c wc:catchmentName ?rbdName .
+}
+GROUP BY ?rbdName
+ORDER BY DESC(?count)
+LIMIT 10
+"""
+
 # ── Public builders ───────────────────────────────────────────────────────────
 
 def sparql_generation_prompt() -> str:
@@ -90,6 +160,7 @@ def sparql_generation_prompt() -> str:
         + _CLASSES
         + _PROPERTIES
         + _SPARQL_NOTES
+        + _EXAMPLES
         + "\nReturn ONLY the SPARQL query — no explanation, no markdown fences."
     )
 

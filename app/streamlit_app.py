@@ -249,12 +249,46 @@ with tab_map:
 
 # ── Explore tab ──────────────────────────────────────────────────────────────
 
+_OWL_CLASSES = [
+    ("IndustrialFacility", "industrial", "An EU industrial site regulated under E-PRTR v16. Holds facility name, country, NUTS region, NACE activity code, and geo coordinates. 7,615 individuals."),
+    ("EmissionEvent", "industrial", "A single annual pollutant release record — one facility, one pollutant, one year, one medium (air / water / land). 254,156 individuals covering 65 pollutants (2007–2024)."),
+    ("MonitoringStation", "water", "An EU water quality monitoring point from EEA Waterbase WISE6. Geo-coordinates patched via a two-pass WISE crosswalk. 2,168 individuals."),
+    ("WaterBody", "water", "A river, lake, or estuary identified by its WISE6 water body code. Linked to a monitoring station and its enclosing River Basin District."),
+    ("Pollutant", "pollution", "A chemical substance emitted or monitored, identified by name and CAS number. Links to compliance thresholds from the IED BREF reference document. 65 substances."),
+    ("ComplianceThreshold", "pollution", "An emission limit value from E-PRTR Regulation Annex II. Specifies the allowed quantity per year for a given pollutant. 90 thresholds."),
+    ("Catchment", "spatial", "An EU River Basin District — the fundamental hydrological unit of the Water Framework Directive. 209 RBDs used as spatial containers linking facilities and water bodies."),
+    ("RegulationDocument", "regulatory", "A regulatory source document — currently the IED BREF for Large Combustion Plants (2017). Linked to compliance thresholds via regulatedBy."),
+]
+
+_CLASS_COLORS = {
+    "industrial": "#1a6fa8",
+    "water":      "#0f6e56",
+    "pollution":  "#854F0B",
+    "spatial":    "#993C1D",
+    "regulatory": "#534AB7",
+}
+
 with tab_explore:
-    st.markdown("#### Ontology Structure")
+    st.markdown("#### OWL Classes")
+    st.caption("Eight core classes form the ontology. Each class maps to one or more EU open datasets.")
+
+    for _cls, _grp, _desc in _OWL_CLASSES:
+        _col_badge, _col_text = st.columns([1, 6])
+        with _col_badge:
+            _color = _CLASS_COLORS[_grp]
+            st.markdown(
+                f'<span style="background:{_color};color:#fff;padding:3px 10px;'
+                f'border-radius:99px;font-size:12px;font-weight:500">{_cls}</span>',
+                unsafe_allow_html=True,
+            )
+        with _col_text:
+            st.caption(_desc)
+
+    st.divider()
+    st.markdown("#### Ontology Graph")
     st.caption(
-        "Eight OWL classes connected by seven object properties. "
         "Hover over a node to inspect its data properties and instance count. "
-        "Drag nodes to rearrange — use the filters above the graph to focus on a domain."
+        "Drag nodes to rearrange — use the filters to focus on a domain."
     )
     import streamlit.components.v1 as _components
     _explorer_html = (_ROOT / "app" / "components" / "ontology_explorer.html").read_text(encoding="utf-8")
