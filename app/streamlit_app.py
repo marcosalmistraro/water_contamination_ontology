@@ -249,17 +249,6 @@ with tab_map:
 
 # ── Explore tab ──────────────────────────────────────────────────────────────
 
-_OWL_CLASSES = [
-    ("IndustrialFacility", "industrial", "An EU industrial site regulated under E-PRTR v16. Holds facility name, country, NUTS region, NACE activity code, and geo coordinates. 7,615 individuals."),
-    ("EmissionEvent", "industrial", "A single annual pollutant release record — one facility, one pollutant, one year, one medium (air / water / land). 254,156 individuals covering 65 pollutants (2007–2024)."),
-    ("MonitoringStation", "water", "An EU water quality monitoring point from EEA Waterbase WISE6. Geo-coordinates patched via a two-pass WISE crosswalk. 2,168 individuals."),
-    ("WaterBody", "water", "A river, lake, or estuary identified by its WISE6 water body code. Linked to a monitoring station and its enclosing River Basin District."),
-    ("Pollutant", "pollution", "A chemical substance emitted or monitored, identified by name and CAS number. Links to compliance thresholds from the IED BREF reference document. 65 substances."),
-    ("ComplianceThreshold", "pollution", "An emission limit value from E-PRTR Regulation Annex II. Specifies the allowed quantity per year for a given pollutant. 90 thresholds."),
-    ("Catchment", "spatial", "An EU River Basin District — the fundamental hydrological unit of the Water Framework Directive. 209 RBDs used as spatial containers linking facilities and water bodies."),
-    ("RegulationDocument", "regulatory", "A regulatory source document — currently the IED BREF for Large Combustion Plants (2017). Linked to compliance thresholds via regulatedBy."),
-]
-
 _CLASS_COLORS = {
     "industrial": "#1a6fa8",
     "water":      "#0f6e56",
@@ -268,23 +257,189 @@ _CLASS_COLORS = {
     "regulatory": "#534AB7",
 }
 
+_OWL_CLASSES = [
+    {
+        "name": "IndustrialFacility",
+        "group": "industrial",
+        "count": "7,615 individuals",
+        "description": (
+            "An EU industrial site that is legally required to report its pollutant releases under the "
+            "E-PRTR regulation. Each facility has a unique identifier, a name, a country code, a NUTS "
+            "region, a NACE economic activity code, and geographic coordinates."
+        ),
+        "links_out": [
+            ("hasEmissionEvent", "EmissionEvent",
+             "Each facility generates one emission record per pollutant per year. "
+             "A facility with many active years and many pollutants accumulates hundreds of records."),
+            ("locatedInCatchment", "Catchment",
+             "The facility's coordinates are matched to a River Basin District via point-in-polygon. "
+             "This allows spatial queries such as 'all facilities in the Rhine basin'."),
+        ],
+        "links_in": [],
+    },
+    {
+        "name": "EmissionEvent",
+        "group": "industrial",
+        "count": "254,156 individuals",
+        "description": (
+            "A single annual emission record: one facility released a specific quantity of one pollutant "
+            "in one year via one medium (air, water, or land). Quantities are in kilograms per year. "
+            "The record also flags whether the release was accidental."
+        ),
+        "links_out": [
+            ("involvesPollutant", "Pollutant",
+             "Each emission event is linked to the specific chemical substance that was released, "
+             "allowing queries like 'all events involving mercury' or 'total nitrogen emitted per country'."),
+        ],
+        "links_in": [
+            ("hasEmissionEvent", "IndustrialFacility",
+             "The facility that reported this release. Every emission event belongs to exactly one facility."),
+        ],
+    },
+    {
+        "name": "MonitoringStation",
+        "group": "water",
+        "count": "2,168 individuals",
+        "description": (
+            "A fixed measurement point operated by an EU member state to track water quality. "
+            "Stations are identified by a WISE6 station ID and name. Geographic coordinates were "
+            "patched from the WISE monitoring sites service via a two-pass crosswalk "
+            "(EIONET first, then WFD2022 batch lookup for unresolved stations)."
+        ),
+        "links_out": [
+            ("monitors", "WaterBody",
+             "The water body that this station is measuring. "
+             "One station monitors exactly one water body."),
+        ],
+        "links_in": [],
+    },
+    {
+        "name": "WaterBody",
+        "group": "water",
+        "count": "",
+        "description": (
+            "A river, lake, transitional water, or coastal water body identified by its WISE6 code "
+            "and name. Water bodies are the unit of assessment under the EU Water Framework Directive."
+        ),
+        "links_out": [
+            ("drainsToCatchment", "Catchment",
+             "The River Basin District that this water body drains into. "
+             "Used to spatially connect monitoring data to the broader basin."),
+        ],
+        "links_in": [
+            ("monitors", "MonitoringStation",
+             "The monitoring station that measures this water body. "
+             "One water body may be monitored by one or more stations."),
+        ],
+    },
+    {
+        "name": "Pollutant",
+        "group": "pollution",
+        "count": "65 substances",
+        "description": (
+            "A chemical substance that is either emitted by industrial facilities or monitored at "
+            "water quality stations. Identified by a standard name and, where available, a CAS registry "
+            "number (e.g. CAS 7440-38-2 for arsenic)."
+        ),
+        "links_out": [
+            ("hasThreshold", "ComplianceThreshold",
+             "The regulatory emission limit that applies to this pollutant under EU law. "
+             "Thresholds are drawn from the IED BREF Annex II table."),
+        ],
+        "links_in": [
+            ("involvesPollutant", "EmissionEvent",
+             "Every emission event that involves this substance. "
+             "Allows aggregating total releases across all facilities and years."),
+        ],
+    },
+    {
+        "name": "ComplianceThreshold",
+        "group": "pollution",
+        "count": "90 thresholds",
+        "description": (
+            "A legally binding emission limit value from E-PRTR Regulation (EC) No 166/2006 Annex II. "
+            "Specifies the maximum quantity (kg/year) that a facility may release for a given pollutant "
+            "before the release must be publicly reported."
+        ),
+        "links_out": [
+            ("regulatedBy", "RegulationDocument",
+             "The legal instrument that defines this threshold. "
+             "Provides the document title, year, and publisher for full traceability."),
+        ],
+        "links_in": [
+            ("hasThreshold", "Pollutant",
+             "The pollutant this threshold governs. "
+             "Each threshold applies to exactly one substance."),
+        ],
+    },
+    {
+        "name": "Catchment",
+        "group": "spatial",
+        "count": "209 River Basin Districts",
+        "description": (
+            "An EU River Basin District (RBD) — the fundamental spatial management unit under the "
+            "Water Framework Directive. RBDs are large hydrological areas defined by polygon geometry "
+            "fetched from the EEA ArcGIS REST service. They serve as spatial containers linking "
+            "industrial activity to water bodies."
+        ),
+        "links_out": [],
+        "links_in": [
+            ("locatedInCatchment", "IndustrialFacility",
+             "All industrial facilities whose coordinates fall inside this RBD polygon. "
+             "7,431 facilities were successfully matched."),
+            ("drainsToCatchment", "WaterBody",
+             "All water bodies that drain into this basin. "
+             "1,559 water bodies were linked via this property."),
+        ],
+    },
+    {
+        "name": "RegulationDocument",
+        "group": "regulatory",
+        "count": "",
+        "description": (
+            "A regulatory source document that defines emission standards. Currently one individual: "
+            "the IED Best Available Techniques Reference Document (BREF) for Large Combustion Plants, "
+            "European Commission, 2017. It provides the legal authority behind the 90 compliance thresholds."
+        ),
+        "links_out": [],
+        "links_in": [
+            ("regulatedBy", "ComplianceThreshold",
+             "All compliance thresholds that cite this document as their legal source."),
+        ],
+    },
+]
+
 with tab_explore:
-    st.markdown("#### OWL Classes")
-    st.caption("Eight core classes form the ontology. Each class maps to one or more EU open datasets.")
+    st.markdown("#### Ontology Entities")
+    st.caption("Eight OWL classes. For each entity: what it represents, what it links to, and what links to it.")
 
-    for _cls, _grp, _desc in _OWL_CLASSES:
-        _col_badge, _col_text = st.columns([1, 6])
-        with _col_badge:
-            _color = _CLASS_COLORS[_grp]
-            st.markdown(
-                f'<span style="background:{_color};color:#fff;padding:3px 10px;'
-                f'border-radius:99px;font-size:12px;font-weight:500">{_cls}</span>',
-                unsafe_allow_html=True,
-            )
-        with _col_text:
-            st.caption(_desc)
+    for _cls_meta in _OWL_CLASSES:
+        _color = _CLASS_COLORS[_cls_meta["group"]]
+        _badge = (
+            f'<span style="background:{_color};color:#fff;padding:2px 10px;'
+            f'border-radius:99px;font-size:12px;font-weight:500">{_cls_meta["name"]}</span>'
+        )
+        _count_str = f" &nbsp;·&nbsp; {_cls_meta['count']}" if _cls_meta["count"] else ""
+        st.markdown(f"{_badge}{_count_str}", unsafe_allow_html=True)
+        st.markdown(_cls_meta["description"])
 
-    st.divider()
+        _lo, _li = _cls_meta["links_out"], _cls_meta["links_in"]
+        if _lo or _li:
+            _c1, _c2 = st.columns(2)
+            with _c1:
+                if _lo:
+                    st.markdown("**Links to**")
+                    for _prop, _target, _why in _lo:
+                        st.markdown(f"→ **{_target}** via `{_prop}`")
+                        st.caption(_why)
+            with _c2:
+                if _li:
+                    st.markdown("**Linked from**")
+                    for _prop, _src, _why in _li:
+                        st.markdown(f"← **{_src}** via `{_prop}`")
+                        st.caption(_why)
+        st.divider()
+
     st.markdown("#### Ontology Graph")
     st.caption(
         "Hover over a node to inspect its data properties and instance count. "
