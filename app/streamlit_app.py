@@ -35,16 +35,52 @@ st.set_page_config(
 
 # ── Cached resources ──────────────────────────────────────────────────────────
 
+def _download_store_from_hf(ox_path: Path) -> None:
+    """Download and extract the Oxigraph store from Hugging Face Hub."""
+    import zipfile
+    repo_id = os.getenv("HF_REPO_ID") or st.secrets.get("HF_REPO_ID", "")
+    if not repo_id:
+        return
+    try:
+        from huggingface_hub import hf_hub_download
+    except ImportError:
+        logger.warning("huggingface_hub not installed — cannot download store")
+        return
+    token = os.getenv("HF_TOKEN") or st.secrets.get("HF_TOKEN", "") or None
+    with st.status("Downloading knowledge graph from Hugging Face…", expanded=True) as s:
+        try:
+            s.write("Fetching oxigraph_store.zip …")
+            zip_path = hf_hub_download(
+                repo_id=repo_id,
+                filename="oxigraph_store.zip",
+                repo_type="dataset",
+                token=token,
+            )
+            s.write("Extracting …")
+            ox_path.parent.mkdir(parents=True, exist_ok=True)
+            with zipfile.ZipFile(zip_path) as zf:
+                zf.extractall(ox_path.parent)
+            s.update(label="Knowledge graph ready.", state="complete")
+        except Exception as exc:
+            logger.error("HF download failed: %s", exc)
+            s.update(label=f"Download failed: {exc}", state="error")
+
+
 @st.cache_resource(show_spinner="Loading knowledge graph…")
 def load_graph():  # type: ignore[return]
     from water_ontology.graph import build_graph, load_graph as _load, load_graph_oxigraph
 
-    # Oxigraph store: opens in milliseconds (no NT parsing)
     ox_path = _ROOT / "data" / "ontology" / "oxigraph_store"
+
+    # If store is missing and we have an HF repo configured, fetch it
+    if not ox_path.exists():
+        _download_store_from_hf(ox_path)
+
+    # Oxigraph store: opens in milliseconds
     if ox_path.exists():
         return load_graph_oxigraph(ox_path)
 
-    # Fallback: parse NT / OWL file (slow on large graphs)
+    # Fallback: parse NT / OWL file
     for fname, fmt in [("water_contamination.nt", "nt"), ("water_contamination.owl", "xml")]:
         p = _ROOT / "data" / "ontology" / fname
         if p.exists():
