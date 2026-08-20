@@ -65,9 +65,13 @@ ignore = [
 "tests/*" = ["ANN"]  # test files don't need type annotations
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 strict = true
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["numpy.*", "pandas.*", "geopandas.*", "shapely.*", "pdfplumber.*", "pyoxigraph.*", "folium.*", "mlflow.*", "langchain.*", "langchain_groq.*", "langchain_core.*", "streamlit.*", "streamlit_folium.*", "huggingface_hub.*"]
+ignore_errors = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
