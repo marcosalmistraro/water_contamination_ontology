@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
+from typing import Any
 
 from rdflib import Graph
 
@@ -73,7 +74,7 @@ class NLChain:
                 if attempt == 1:
                     return ChainResult(
                         question=question, sparql=sparql,
-                        query_result=QueryResult(columns=[], rows=[], row_count=0),
+                        query_result=QueryResult(columns=[], rows=[], sparql=""),
                         answer=(
                             "I couldn't find data in the knowledge graph to answer that question. "
                             "Try asking about specific facilities, pollutants, countries, or emission quantities."
@@ -83,7 +84,7 @@ class NLChain:
                 logger.error("[NLChain] Query execution failed: %s", exc)
                 return ChainResult(
                     question=question, sparql=sparql,
-                    query_result=QueryResult(columns=[], rows=[], row_count=0),
+                    query_result=QueryResult(columns=[], rows=[], sparql=""),
                     answer="I ran into an issue while querying the knowledge graph. Try rephrasing your question.",
                 )
 
@@ -99,7 +100,7 @@ class NLChain:
     # Private
     # ------------------------------------------------------------------
 
-    def _build_llm(self) -> object:
+    def _build_llm(self) -> Any:
         try:
             from langchain_groq import ChatGroq
         except ImportError as exc:
@@ -124,7 +125,7 @@ class NLChain:
             SystemMessage(content=sparql_generation_prompt()),
             HumanMessage(content=user_content),
         ]
-        response = self._llm.invoke(messages)  # type: ignore[union-attr]
+        response = self._llm.invoke(messages)
         sparql = str(response.content).strip()
         sparql = _strip_fences(sparql)
         return sparql
@@ -142,7 +143,7 @@ class NLChain:
                 )
             ),
         ]
-        response = self._llm.invoke(messages)  # type: ignore[union-attr]
+        response = self._llm.invoke(messages)
         return str(response.content).strip()
 
 

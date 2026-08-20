@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from contextlib import AbstractContextManager
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from water_ontology.ingesters.base import BaseIngester
@@ -196,8 +197,8 @@ def validate_only(
 def _run_ingester(
     label: str,
     factory: Callable[[], BaseIngester],
-    all_counts: dict,
-    skipped: list,
+    all_counts: dict[str, int],
+    skipped: list[str],
     track: bool,
 ) -> None:
     """Run one ingester, catch any exception, and continue the pipeline."""
@@ -224,7 +225,7 @@ def _print_counts(counts: dict[str, int]) -> None:
     console.print(table)
 
 
-def _maybe_mlflow(track: bool, run_name: str) -> object:
+def _maybe_mlflow(track: bool, run_name: str) -> AbstractContextManager[Any]:
     if not track:
         from contextlib import nullcontext
         return nullcontext()
