@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from enum import Enum
 from pathlib import Path
-from typing import Callable, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from water_ontology.ingesters.base import BaseIngester
@@ -62,11 +63,11 @@ def ingest(
     from water_ontology.config import load_ontology_config, load_sources
     from water_ontology.graph import build_graph, save_graph
     from water_ontology.ingesters.eprtr import EprtrIngester
-    from water_ontology.ingesters.waterbase import WaterbaseIngester
     from water_ontology.ingesters.geojson_ingester import GeoJsonIngester
+    from water_ontology.ingesters.monitoring_sites_ingester import MonitoringSitesIngester
     from water_ontology.ingesters.pdf_ingester import PdfIngester
     from water_ontology.ingesters.rdf_ingester import RdfIngester
-    from water_ontology.ingesters.monitoring_sites_ingester import MonitoringSitesIngester
+    from water_ontology.ingesters.waterbase import WaterbaseIngester
     from water_ontology.linkers.spatial_joiner import link_facilities_to_rbds
 
     src_cfg = load_sources(sources_cfg)
@@ -127,6 +128,7 @@ def ingest(
         # Spatial join: link E-PRTR facilities to river basin districts
         if source == "all":
             import logging as _logging
+
             from water_ontology.linkers.spatial_joiner import link_stations_to_rbds
             _sj_log = _logging.getLogger(__name__)
             rbd_path = raw_dir / "eu_river_basins.geojson"
@@ -144,8 +146,8 @@ def ingest(
                 _sj_log.error("[SpatialJoin-Stations] Failed — skipping: %s", exc)
 
         if validate and shacl_shapes.exists():
-            from water_ontology.validation.shacl_validator import validate as shacl_validate
             from water_ontology.tracking.mlflow_logger import log_validation_result
+            from water_ontology.validation.shacl_validator import validate as shacl_validate
             result = shacl_validate(graph, shacl_shapes)
             if track:
                 log_validation_result(result.conforms, result.violation_count)
@@ -193,7 +195,7 @@ def validate_only(
 
 def _run_ingester(
     label: str,
-    factory: "Callable[[], BaseIngester]",
+    factory: Callable[[], BaseIngester],
     all_counts: dict,
     skipped: list,
     track: bool,

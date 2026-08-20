@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 from rdflib import Graph
 
-from water_ontology.graph import build_graph
 from water_ontology.config import NamespacesConfig
+from water_ontology.graph import build_graph
 
 
 @pytest.fixture()

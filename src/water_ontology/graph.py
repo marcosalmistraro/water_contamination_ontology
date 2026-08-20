@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from rdflib import Graph, Literal, Namespace, RDF, RDFS, OWL, XSD
-from rdflib.namespace import NamespaceManager
+from rdflib import OWL, RDF, RDFS, XSD, Graph, Literal, Namespace
 
 from water_ontology.config import NamespacesConfig, load_ontology_config
 
@@ -45,6 +44,7 @@ def save_graph(g: Graph, path: Path, fmt: str = "xml") -> None:
 def save_graph_oxigraph(nt_path: Path, store_path: Path) -> None:
     """Bulk-load an NT file into a persistent Oxigraph store directory."""
     import shutil
+
     import pyoxigraph as ox  # type: ignore[import]
     if store_path.exists():
         shutil.rmtree(store_path)
@@ -54,9 +54,10 @@ def save_graph_oxigraph(nt_path: Path, store_path: Path) -> None:
         ox_store.bulk_load(fh, "application/n-triples")
 
 
-def load_graph_oxigraph(store_path: Path) -> "OxigraphAdapter":  # type: ignore[return]
+def load_graph_oxigraph(store_path: Path) -> OxigraphAdapter:  # type: ignore[return]  # noqa: F821
     """Open an existing Oxigraph store in read-only mode. Near-instant — no NT parsing needed."""
     import pyoxigraph as ox  # type: ignore[import]
+
     from water_ontology.oxigraph_adapter import OxigraphAdapter
     return OxigraphAdapter(ox.Store.read_only(str(store_path)))
 

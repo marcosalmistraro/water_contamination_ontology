@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from rdflib import Graph, Literal, Namespace, RDF, RDFS, SKOS, URIRef, XSD
+from rdflib import RDF, RDFS, SKOS, XSD, Graph, Literal, Namespace, URIRef
 from rdflib.namespace import OWL
 
 from water_ontology.config import SourceConfig

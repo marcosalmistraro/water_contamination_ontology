@@ -7,12 +7,11 @@ Python 3.14 wheel).
 
 from __future__ import annotations
 
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 import pyoxigraph as ox
 from rdflib import BNode, Literal, URIRef
-from rdflib import XSD
-
 
 # ---------------------------------------------------------------------------
 # Public adapter
@@ -27,7 +26,7 @@ class OxigraphAdapter:
     def __len__(self) -> int:
         return len(self._store)
 
-    def query(self, sparql: str, **_kwargs: Any) -> "AdaptedResult":
+    def query(self, sparql: str, **_kwargs: Any) -> AdaptedResult:
         result = self._store.query(sparql)
         return AdaptedResult(result)
 

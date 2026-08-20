@@ -5,9 +5,9 @@ from __future__ import annotations
 import pytest
 
 from water_ontology.query.guardrails import (
-    GuardrailError,
     DEFAULT_LIMIT,
     MAX_LIMIT,
+    GuardrailError,
     validate_sparql,
 )
 

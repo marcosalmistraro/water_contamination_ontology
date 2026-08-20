@@ -6,7 +6,7 @@ import logging
 import os
 
 from fastapi import APIRouter, Depends
-from rdflib import Graph, RDF
+from rdflib import RDF, Graph
 
 from water_ontology.api.deps import get_graph
 from water_ontology.api.models import GraphStats, HealthResponse

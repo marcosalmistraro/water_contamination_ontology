@@ -7,14 +7,12 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-from rdflib import Graph, Literal, Namespace, RDF, URIRef, XSD
+from rdflib import RDF, XSD, Graph, Literal, Namespace, URIRef
 
 from water_ontology.ingesters.monitoring_sites_ingester import (
     MonitoringSitesIngester,
     _build_lookup,
     _patch_stations,
-    _find_unmatched,
 )
 
 WC = Namespace("https://w3id.org/water-contamination/")

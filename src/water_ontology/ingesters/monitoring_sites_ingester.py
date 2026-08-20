@@ -16,7 +16,7 @@ from pathlib import Path
 from urllib.parse import urlencode
 
 import requests
-from rdflib import Graph, Literal, Namespace, RDF, XSD, URIRef
+from rdflib import XSD, Graph, Literal, Namespace, URIRef
 
 from water_ontology.config import SourceConfig
 from water_ontology.ingesters.base import BaseIngester
@@ -161,7 +161,10 @@ class MonitoringSitesIngester(BaseIngester):
             with self.wfd_cache.open(encoding="utf-8") as fh:
                 return json.load(fh)
 
-        logger.info("[%s] Querying WFD2022 for %d station IDs (batch=%d)", self.source_name, len(station_ids), _WFD_BATCH)
+        logger.info(
+            "[%s] Querying WFD2022 for %d station IDs (batch=%d)",
+            self.source_name, len(station_ids), _WFD_BATCH,
+        )
         all_sites: dict[str, dict] = {}
 
         for i in range(0, len(station_ids), _WFD_BATCH):
@@ -184,7 +187,13 @@ class MonitoringSitesIngester(BaseIngester):
                 logger.warning("[%s] WFD batch %d failed: %s", self.source_name, i // _WFD_BATCH, exc)
 
             if (i // _WFD_BATCH + 1) % 5 == 0:
-                logger.info("[%s] WFD progress: %d/%d batches, %d matched", self.source_name, i // _WFD_BATCH + 1, (len(station_ids) + _WFD_BATCH - 1) // _WFD_BATCH, len(all_sites))
+                logger.info(
+                    "[%s] WFD progress: %d/%d batches, %d matched",
+                    self.source_name,
+                    i // _WFD_BATCH + 1,
+                    (len(station_ids) + _WFD_BATCH - 1) // _WFD_BATCH,
+                    len(all_sites),
+                )
 
         self.wfd_cache.write_text(json.dumps(all_sites), encoding="utf-8")
         logger.info("[%s] WFD crosswalk: %d matches → %s", self.source_name, len(all_sites), self.wfd_cache.name)

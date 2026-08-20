@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel
 
 
 class SourceConfig(BaseModel):

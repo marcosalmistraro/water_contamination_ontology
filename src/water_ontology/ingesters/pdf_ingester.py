@@ -11,10 +11,11 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
-from rdflib import Graph, Literal, Namespace, RDF, XSD
+from rdflib import RDF, XSD, Graph, Literal, Namespace
 
 from water_ontology.config import SourceConfig
 from water_ontology.ingesters.base import BaseIngester
@@ -145,7 +146,7 @@ class PdfIngester(BaseIngester):
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _iter_annex_ii(regulation: str):
+def _iter_annex_ii(regulation: str) -> Iterator[RawThreshold]:
     """Yield one RawThreshold per medium per substance from the hardcoded Annex II table."""
     medium_idx = {"air": 1, "water": 2, "land": 3}
     for row in _ANNEX_II:

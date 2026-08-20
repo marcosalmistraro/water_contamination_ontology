@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 from rdflib import RDF, URIRef
 
-from water_ontology.ingesters.waterbase import WaterbaseIngester, _str, _float
+from water_ontology.ingesters.waterbase import WaterbaseIngester, _float, _str
 
 WCD = "https://w3id.org/water-contamination/data/"
 WC = "https://w3id.org/water-contamination/"

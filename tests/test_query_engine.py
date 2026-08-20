@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from rdflib import Graph, Literal, Namespace, RDF, XSD
+from rdflib import RDF, XSD, Graph, Literal, Namespace
 
 from water_ontology.query.engine import QueryEngine, QueryResult, _term_value
 
@@ -90,7 +90,7 @@ class TestTermValue:
         assert _term_value(Literal("hello")) == "hello"
 
     def test_literal_int(self) -> None:
-        from rdflib import Literal, XSD
+        from rdflib import XSD, Literal
         assert _term_value(Literal(42, datatype=XSD.integer)) == 42
 
     def test_none(self) -> None:

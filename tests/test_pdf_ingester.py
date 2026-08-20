@@ -5,7 +5,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-from rdflib import RDF, Literal, URIRef, XSD
+from rdflib import RDF, URIRef
 
 from water_ontology.ingesters.pdf_ingester import (
     PdfIngester,

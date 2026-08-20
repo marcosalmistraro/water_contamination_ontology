@@ -9,7 +9,7 @@ from typing import Any
 from urllib.parse import urlencode
 
 import requests
-from rdflib import Graph, Literal, Namespace, RDF, XSD
+from rdflib import RDF, XSD, Graph, Literal, Namespace
 
 from water_ontology.config import SourceConfig
 from water_ontology.ingesters.base import BaseIngester

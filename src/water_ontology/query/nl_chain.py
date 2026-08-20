@@ -11,7 +11,6 @@ Flow:
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 from dataclasses import dataclass
@@ -54,8 +53,8 @@ class NLChain:
 
     def ask(self, question: str) -> ChainResult:
         """Run the full chain and return a structured result."""
-        from water_ontology.query.guardrails import GuardrailError
         from water_ontology.query.engine import QueryResult
+        from water_ontology.query.guardrails import GuardrailError
 
         logger.info("[NLChain] Question: %s", question)
 
@@ -75,7 +74,10 @@ class NLChain:
                     return ChainResult(
                         question=question, sparql=sparql,
                         query_result=QueryResult(columns=[], rows=[], row_count=0),
-                        answer="I couldn't find data in the knowledge graph to answer that question. Try asking about specific facilities, pollutants, countries, or emission quantities.",
+                        answer=(
+                            "I couldn't find data in the knowledge graph to answer that question. "
+                            "Try asking about specific facilities, pollutants, countries, or emission quantities."
+                        ),
                     )
             except Exception as exc:
                 logger.error("[NLChain] Query execution failed: %s", exc)
@@ -113,7 +115,10 @@ class NLChain:
 
         user_content = question
         if force_select:
-            user_content += "\n\n[IMPORTANT: You MUST return a SPARQL SELECT query. Do not use ASK, CONSTRUCT, or DESCRIBE under any circumstances.]"
+            user_content += (
+                "\n\n[IMPORTANT: You MUST return a SPARQL SELECT query. "
+                "Do not use ASK, CONSTRUCT, or DESCRIBE under any circumstances.]"
+            )
 
         messages = [
             SystemMessage(content=sparql_generation_prompt()),

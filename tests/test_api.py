@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
-from rdflib import Graph, Literal, Namespace, RDF, XSD
+from rdflib import RDF, XSD, Graph, Literal, Namespace
 
 from water_ontology.api.app import create_app
 from water_ontology.api.deps import get_chain, get_engine, get_graph

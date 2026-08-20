@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import io
 import logging
 import zipfile
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
 
 import pandas as pd
 from rdflib import Graph

@@ -4,11 +4,10 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-from rdflib import Graph, Literal, Namespace, RDF, XSD
+from rdflib import RDF, XSD, Graph, Literal, Namespace
 
-from water_ontology.query.nl_chain import NLChain, ChainResult, _strip_fences, _format_results
 from water_ontology.query.engine import QueryResult
+from water_ontology.query.nl_chain import ChainResult, NLChain, _format_results, _strip_fences
 
 WC = Namespace("https://w3id.org/water-contamination/")
 WCD = Namespace("https://w3id.org/water-contamination/data/")

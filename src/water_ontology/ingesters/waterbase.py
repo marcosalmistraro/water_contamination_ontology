@@ -10,14 +10,12 @@ from __future__ import annotations
 import logging
 import zipfile
 from pathlib import Path
-from typing import Iterator
 
 import pandas as pd
-from rdflib import Graph, Literal, Namespace, RDF, XSD
+from rdflib import RDF, XSD, Graph, Literal, Namespace
 
 from water_ontology.config import SourceConfig
 from water_ontology.ingesters.base import BaseIngester
-from water_ontology.models import MonitoringStation, WaterBody
 
 logger = logging.getLogger(__name__)
 

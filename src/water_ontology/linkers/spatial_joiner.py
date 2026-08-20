@@ -16,7 +16,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from rdflib import Graph, Literal, Namespace, RDF, XSD, URIRef
+from rdflib import Graph, Namespace, URIRef
 
 logger = logging.getLogger(__name__)
 

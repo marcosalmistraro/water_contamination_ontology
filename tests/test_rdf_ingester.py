@@ -6,9 +6,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock
 
-import pytest
-from rdflib import Graph, Literal, Namespace, RDF, URIRef
-from rdflib.namespace import OWL, SKOS
+from rdflib import RDF, Graph, URIRef
 
 from water_ontology.ingesters.rdf_ingester import RdfIngester
 

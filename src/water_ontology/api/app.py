@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,8 +27,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         g = load_graph(owl_path)
         logger.info("Graph loaded from %s (%d triples)", owl_path, len(g))
     else:
-        from rdflib import Graph
-        from water_ontology.config import load_ontology_config
         from water_ontology.graph import build_graph
         logger.warning("OWL file not found at %s — starting with empty graph", owl_path)
         g = build_graph()

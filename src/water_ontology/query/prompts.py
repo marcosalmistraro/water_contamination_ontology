@@ -5,7 +5,7 @@ valid SPARQL against our specific classes, properties, and namespaces.
 
 from __future__ import annotations
 
-from water_ontology.query.guardrails import GROUNDING_RULES, ANSWER_GROUNDING
+from water_ontology.query.guardrails import ANSWER_GROUNDING, GROUNDING_RULES
 
 # ── Ontology schema (kept in sync with graph.py and models.py) ────────────────
 

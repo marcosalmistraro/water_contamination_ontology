@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -11,20 +9,20 @@ class IndustrialFacility(BaseModel):
     facility_id: str
     name: str
     country_code: str
-    nuts_region: Optional[str] = None
-    lat: Optional[float] = None
-    lon: Optional[float] = None
-    nace_code: Optional[str] = None
-    competent_authority: Optional[str] = None
-    street_address: Optional[str] = None
-    city: Optional[str] = None
-    postcode: Optional[str] = None
+    nuts_region: str | None = None
+    lat: float | None = None
+    lon: float | None = None
+    nace_code: str | None = None
+    competent_authority: str | None = None
+    street_address: str | None = None
+    city: str | None = None
+    postcode: str | None = None
 
 
 class Pollutant(BaseModel):
     pollutant_id: str      # e.g. "CAS:7440-38-2" or E-PRTR pollutant code
     name: str
-    cas_number: Optional[str] = None
+    cas_number: str | None = None
     medium: str = Field(pattern="^(air|water|land)$")
 
 
@@ -33,7 +31,7 @@ class EmissionEvent(BaseModel):
     facility_id: str
     pollutant_id: str
     reporting_year: int
-    quantity_kg: Optional[float] = None
+    quantity_kg: float | None = None
     medium: str = Field(pattern="^(air|water|land)$")
     accidental: bool = False
     data_source: str = "E-PRTR"
@@ -48,19 +46,19 @@ class EmissionEvent(BaseModel):
 
 class WaterBody(BaseModel):
     water_body_id: str
-    name: Optional[str] = None
-    water_body_type: Optional[str] = None   # river, lake, coastal, transitional
-    country_code: Optional[str] = None
-    rbd_code: Optional[str] = None          # River Basin District code
+    name: str | None = None
+    water_body_type: str | None = None   # river, lake, coastal, transitional
+    country_code: str | None = None
+    rbd_code: str | None = None          # River Basin District code
 
 
 class MonitoringStation(BaseModel):
     station_id: str
-    name: Optional[str] = None
-    lat: Optional[float] = None
-    lon: Optional[float] = None
-    water_body_id: Optional[str] = None
-    country_code: Optional[str] = None
+    name: str | None = None
+    lat: float | None = None
+    lon: float | None = None
+    water_body_id: str | None = None
+    country_code: str | None = None
 
 
 class ComplianceThreshold(BaseModel):

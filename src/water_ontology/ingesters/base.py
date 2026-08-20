@@ -7,7 +7,6 @@ import hashlib
 import logging
 import time
 from pathlib import Path
-from typing import Iterator
 
 import requests
 from rdflib import Graph

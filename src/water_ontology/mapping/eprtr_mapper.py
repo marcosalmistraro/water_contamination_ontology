@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from rdflib import Graph, Literal, RDF, XSD
+from rdflib import RDF, XSD, Graph, Literal
 from rdflib.namespace import Namespace
 
 from water_ontology.models import EmissionEvent, IndustrialFacility, Pollutant

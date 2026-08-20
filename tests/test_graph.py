@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 from rdflib import OWL, RDF, URIRef
 
-from water_ontology.graph import build_graph, save_graph, load_graph
+from water_ontology.graph import load_graph, save_graph
 
 WC = "https://w3id.org/water-contamination/"
 
@@ -19,7 +18,7 @@ def test_build_graph_declares_core_classes(empty_graph):  # type: ignore[no-unty
 
 
 def test_save_and_load_roundtrip(empty_graph) -> None:
-    import tempfile, os
+    import tempfile
     with tempfile.TemporaryDirectory() as td:
         out = Path(td) / "test.owl"
         save_graph(empty_graph, out)

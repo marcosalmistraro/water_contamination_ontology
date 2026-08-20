@@ -57,7 +57,7 @@ def _term_value(term: Any) -> Any:
     if term is None:
         return None
     # Literal with a numeric datatype → native type
-    from rdflib import Literal, URIRef, BNode
+    from rdflib import BNode, Literal, URIRef
     if isinstance(term, Literal):
         py = term.toPython()
         return py if not isinstance(py, Literal) else str(term)

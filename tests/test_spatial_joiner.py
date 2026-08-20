@@ -6,8 +6,7 @@ import json
 import tempfile
 from pathlib import Path
 
-import pytest
-from rdflib import Graph, Literal, Namespace, RDF, URIRef, XSD
+from rdflib import RDF, XSD, Graph, Literal, Namespace, URIRef
 
 from water_ontology.linkers.spatial_joiner import link_facilities_to_rbds, link_stations_to_rbds
 

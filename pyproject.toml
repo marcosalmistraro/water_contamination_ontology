@@ -51,12 +51,18 @@ water-ontology = "water_ontology.cli:app"
 where = ["src"]
 
 [tool.ruff]
-line-length = 100
+line-length = 120
 target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "ANN"]
-ignore = ["ANN101", "ANN102"]
+ignore = [
+    "ANN401",  # Any is required for pyoxigraph adapter and other untyped boundaries
+    "UP042",   # str+Enum pattern used in CLI
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ANN"]  # test files don't need type annotations
 
 [tool.mypy]
 python_version = "3.11"

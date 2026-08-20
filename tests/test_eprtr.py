@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import io
-import textwrap
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
-from rdflib import Graph, RDF, URIRef
+from rdflib import RDF, Graph, URIRef
 
 from water_ontology.ingesters.eprtr import (
     EprtrIngester,

@@ -7,7 +7,6 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock
 
-import pytest
 from rdflib import RDF, URIRef
 
 from water_ontology.ingesters.geojson_ingester import GeoJsonIngester, _geom_to_wkt
