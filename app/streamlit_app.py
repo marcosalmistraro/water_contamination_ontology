@@ -139,12 +139,28 @@ tab_chat, tab_map, tab_explore, tab_sources, tab_arch, tab_sparql = st.tabs(
 
 # ── Chat tab ──────────────────────────────────────────────────────────────────
 
+_EXAMPLE_QUESTIONS = [
+    "Which facilities in Germany emitted the most nitrogen in 2022?",
+    "How many industrial facilities are located in the Rhine river basin?",
+    "What are the top 5 pollutants by total emission quantity across all countries?",
+    "List monitoring stations in France with their water body names.",
+]
+
 with tab_chat:
     if not groq_key:
         st.info("Add a Groq API key to `.env` to enable the chat.")
     else:
         if "messages" not in st.session_state:
             st.session_state.messages = []
+
+        # Example questions shown when chat is empty
+        if not st.session_state.messages:
+            st.caption("Try asking:")
+            _cols = st.columns(2)
+            for _i, _q in enumerate(_EXAMPLE_QUESTIONS):
+                if _cols[_i % 2].button(_q, key=f"ex_{_i}", use_container_width=True):
+                    st.session_state.messages.append({"role": "user", "content": _q})
+                    st.rerun()
 
         # New question (chat_input always renders at page bottom)
         if prompt := st.chat_input("Ask about facilities, emissions, or water quality…"):
