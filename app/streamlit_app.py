@@ -36,30 +36,47 @@ st.set_page_config(
 # ── Cached resources ──────────────────────────────────────────────────────────
 
 def _download_store_from_hf(ox_path: Path) -> None:
-    """Download and extract the Oxigraph store from Hugging Face Hub."""
+    """Stream the Oxigraph store zip from HF Hub with live progress, then extract."""
+    import tempfile
     import zipfile
+
+    import requests
+
     repo_id = os.getenv("HF_REPO_ID") or st.secrets.get("HF_REPO_ID", "")
     if not repo_id:
         return
-    try:
-        from huggingface_hub import hf_hub_download
-    except ImportError:
-        logger.warning("huggingface_hub not installed — cannot download store")
-        return
+
     token = os.getenv("HF_TOKEN") or st.secrets.get("HF_TOKEN", "") or None
-    with st.status("Downloading knowledge graph from Hugging Face…", expanded=True) as s:
+    url = f"https://huggingface.co/datasets/{repo_id}/resolve/main/oxigraph_store.zip"
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+
+    with st.status("Downloading knowledge graph…", expanded=True) as s:
         try:
-            s.write("Fetching oxigraph_store.zip …")
-            zip_path = hf_hub_download(
-                repo_id=repo_id,
-                filename="oxigraph_store.zip",
-                repo_type="dataset",
-                token=token,
-            )
-            s.write("Extracting …")
+            s.write("Connecting to Hugging Face…")
+            resp = requests.get(url, headers=headers, stream=True, timeout=30)
+            resp.raise_for_status()
+
+            total = int(resp.headers.get("content-length", 0))
+            total_mb = total / 1_048_576
+
+            with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
+                tmp_path = Path(tmp.name)
+                downloaded = 0
+                chunk_size = 4 * 1024 * 1024  # 4 MB chunks
+                for chunk in resp.iter_content(chunk_size=chunk_size):
+                    if chunk:
+                        tmp.write(chunk)
+                        downloaded += len(chunk)
+                        done_mb = downloaded / 1_048_576
+                        pct = int(downloaded / total * 100) if total else 0
+                        s.write(f"Downloading… {done_mb:.0f} / {total_mb:.0f} MB ({pct}%)")
+
+            s.write("Extracting store…")
             ox_path.parent.mkdir(parents=True, exist_ok=True)
-            with zipfile.ZipFile(zip_path) as zf:
+            with zipfile.ZipFile(tmp_path) as zf:
                 zf.extractall(ox_path.parent)
+            tmp_path.unlink(missing_ok=True)
+
             s.update(label="Knowledge graph ready.", state="complete")
         except Exception as exc:
             logger.error("HF download failed: %s", exc)
