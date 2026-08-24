@@ -320,7 +320,12 @@ with tab_chat:
                 )
 
         if _ask_clicked and _question:
-            st.session_state.messages.append({"role": "user", "content": _question})
+            from datetime import datetime
+            st.session_state.messages.append({
+                "role": "user",
+                "content": _question,
+                "ts": datetime.now().strftime("%H:%M · %d %b %Y"),
+            })
             with st.spinner("Querying knowledge graph…"):
                 try:
                     chain = load_chain(groq_key)
@@ -353,24 +358,30 @@ with tab_chat:
                 _i += 1
 
         if _exchanges:
+            st.divider()
+            _hcol, _bcol = st.columns([6, 1])
+            with _hcol:
+                st.markdown(f"#### Conversation history")
+                st.caption(f"{len(_exchanges)} exchange(s) — newest first")
+            with _bcol:
+                st.markdown('<div style="height:32px"></div>', unsafe_allow_html=True)
+                if st.button("Clear all", type="secondary", use_container_width=True):
+                    st.session_state.messages = []
+                    st.rerun()
+
             _col_qa, _col_viz = st.columns([1, 1], gap="large")
 
             with _col_qa:
-                _hcol, _bcol = st.columns([6, 1])
-                with _hcol:
-                    st.caption(f"{len(_exchanges)} exchange(s) — newest first")
-                with _bcol:
-                    if st.button("Clear all", type="secondary", use_container_width=True):
-                        st.session_state.messages = []
-                        st.rerun()
-
                 for _rev_idx, (_msg_idx, _user, _asst) in enumerate(reversed(_exchanges)):
                     with st.container(border=True):
                         _qcol, _dcol = st.columns([20, 1])
                         with _qcol:
                             st.markdown(f"**{_user['content']}**")
+                            if _user.get("ts"):
+                                st.caption(_user["ts"])
                         with _dcol:
-                            if st.button("✕", key=f"del_{_rev_idx}", help="Remove"):
+                            st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
+                            if st.button("✕", key=f"del_{_rev_idx}", help="Remove this exchange"):
                                 _end = _msg_idx + (2 if _asst else 1)
                                 del st.session_state.messages[_msg_idx:_end]
                                 st.rerun()
