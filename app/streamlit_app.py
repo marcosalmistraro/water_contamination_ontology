@@ -239,8 +239,8 @@ with tab_chat:
 
         st.markdown("#### Ask a question")
         st.caption(
-            "❓ Ready-made — pick from a curated list of questions. "
-            "🗺️ By country — generate a country-specific query. "
+            "❓ Ready-made — pick from a curated list of questions.  \n"
+            "🗺️ By country — generate a country-specific query.  \n"
             "Choosing one locks the other. Hit ✕ to clear it."
         )
 
