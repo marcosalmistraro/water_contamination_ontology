@@ -198,11 +198,8 @@ def _clear_country() -> None:
     st.session_state["_country_q"] = None
 
 
-def _on_change_manual() -> None:
-    if st.session_state.get("_manual_q", "").strip():
-        st.session_state["_input_mode"] = "manual"
-    elif st.session_state.get("_input_mode") == "manual":
-        st.session_state["_input_mode"] = None
+def _activate_manual() -> None:
+    st.session_state["_input_mode"] = "manual"
 
 
 def _clear_manual() -> None:
@@ -270,30 +267,62 @@ with tab_chat:
                 if _mode == "country":
                     st.button("✕", key="_clr_co", on_click=_clear_country)
 
-            # Row 3 — Your own
+            # Row 3 — Your own (button activates manual mode)
             _r3, _x3 = st.columns([11, 1])
             with _r3:
-                st.text_area(
-                    "✏️ Your own",
-                    placeholder="e.g. Which river basins have the most emission events?",
-                    disabled=_mode not in (None, "manual"),
-                    on_change=_on_change_manual,
-                    key="_manual_q",
-                    height=80,
-                )
+                if _mode != "manual":
+                    st.button(
+                        "✏️ Your own — write a custom question",
+                        disabled=_mode is not None,
+                        on_click=_activate_manual,
+                        use_container_width=True,
+                    )
+                else:
+                    st.markdown("**✏️ Your own**")
             with _x3:
                 st.markdown('<div style="height:28px"></div>', unsafe_allow_html=True)
                 if _mode == "manual":
                     st.button("✕", key="_clr_mn", on_click=_clear_manual)
 
-        # Assemble active question from whichever mode is selected
+            st.divider()
+
+            # Shared question window — populated by picker, editable only in manual mode
+            st.markdown("**Question**")
+            if _mode == "manual":
+                st.text_area(
+                    "Question",
+                    label_visibility="collapsed",
+                    key="_manual_q",
+                    height=100,
+                    placeholder="e.g. Which river basins have the most emission events?",
+                )
+            else:
+                _preview = ""
+                if _mode == "example" and st.session_state.get("_example_q"):
+                    _preview = st.session_state["_example_q"]
+                elif _mode == "country" and st.session_state.get("_country_q"):
+                    _c = st.session_state["_country_q"]
+                    _preview = (
+                        f"Which industrial facilities in {_c} emitted the most pollutants? "
+                        "Show the top 10 with their total emission quantities."
+                    )
+                st.text_area(
+                    "Question",
+                    label_visibility="collapsed",
+                    value=_preview,
+                    disabled=True,
+                    height=100,
+                    placeholder="Select an input above to populate this question.",
+                )
+
+        # Assemble active question for the Ask button
         _question: str | None = None
         if _mode == "example" and st.session_state.get("_example_q"):
             _question = st.session_state["_example_q"]
         elif _mode == "country" and st.session_state.get("_country_q"):
-            _c = st.session_state["_country_q"]
+            _c2 = st.session_state["_country_q"]
             _question = (
-                f"Which industrial facilities in {_c} emitted the most pollutants? "
+                f"Which industrial facilities in {_c2} emitted the most pollutants? "
                 "Show the top 10 with their total emission quantities."
             )
         elif _mode == "manual" and st.session_state.get("_manual_q", "").strip():
