@@ -400,6 +400,9 @@ with tab_chat:
                             st.rerun()
                     if _asst:
                         st.markdown(_asst["content"])
+                        if _asst.get("rows"):
+                            with st.expander(f"Data table — {_asst['row_count']} row(s)"):
+                                st.dataframe(pd.DataFrame(_asst["rows"]), use_container_width=True)
                         if _asst.get("sparql"):
                             with st.expander("Generated SPARQL"):
                                 st.code(_asst["sparql"], language="sparql")

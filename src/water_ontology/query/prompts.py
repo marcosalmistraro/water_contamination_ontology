@@ -35,7 +35,8 @@ _PROPERTIES = """
 Datatype properties:
   wc:facilityId           xsd:string   on IndustrialFacility
   wc:facilityName         xsd:string   on IndustrialFacility
-  wc:countryCode          xsd:string   on IndustrialFacility, WaterBody (NOT on MonitoringStation)
+  wc:countryCode          xsd:string   on IndustrialFacility, WaterBody (NOT on MonitoringStation).
+                           Values are full English country names, e.g. "Germany", "France", "Poland" — NOT ISO codes.
   wc:nutsRegion           xsd:string   on IndustrialFacility
   wc:naceCode             xsd:string   on IndustrialFacility
   geo:lat                 xsd:decimal  on IndustrialFacility, MonitoringStation
@@ -87,7 +88,7 @@ PREFIX wc: <https://w3id.org/water-contamination/>
 SELECT ?name (SUM(?qty) AS ?total) WHERE {
     ?f a wc:IndustrialFacility ;
        wc:facilityName ?name ;
-       wc:countryCode "DE" ;
+       wc:countryCode "Germany" ;
        wc:hasEmissionEvent ?e .
     ?e wc:reportingYear 2022 ;
        wc:quantityKg ?qty ;
@@ -133,7 +134,7 @@ SELECT ?year (COUNT(?e) AS ?events) WHERE {
 GROUP BY ?year
 ORDER BY ?year
 
-Q: Which country had the highest total water emissions in 2022?
+Q: Which countries had the highest total water emissions in 2022?
 A:
 PREFIX wc: <https://w3id.org/water-contamination/>
 SELECT ?country (SUM(?qty) AS ?total) WHERE {
