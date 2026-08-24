@@ -145,7 +145,7 @@ with st.sidebar:
 
 # ── Page header (always visible above tabs) ───────────────────────────────────
 
-st.markdown("## Water Contamination Intelligence")
+st.markdown("## 💧 Water Contamination Intelligence")
 st.caption(
     "Natural-language intelligence over the EU industrial emissions "
     "and water quality knowledge graph — 3.1M RDF triples across 8 OWL classes."
