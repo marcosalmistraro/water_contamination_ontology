@@ -143,6 +143,28 @@ with st.sidebar:
         for cls, n in counts.items():
             st.markdown(f"&nbsp;&nbsp;`{cls}` — **{n:,}**", unsafe_allow_html=True)
 
+# ── Browser timezone detection ────────────────────────────────────────────────
+
+try:
+    from streamlit_javascript import st_javascript as _st_js
+    _tz_val = _st_js("Intl.DateTimeFormat().resolvedOptions().timeZone")
+    if isinstance(_tz_val, str) and _tz_val:
+        st.session_state["_browser_tz"] = _tz_val
+except Exception:
+    pass
+
+
+def _now_ts() -> str:
+    import zoneinfo
+    from datetime import datetime
+    tz_name = st.session_state.get("_browser_tz", "UTC")
+    try:
+        now = datetime.now(zoneinfo.ZoneInfo(tz_name))
+    except Exception:
+        now = datetime.utcnow()
+    return now.strftime("%H:%M · %d %b %Y")
+
+
 # ── Page header (always visible above tabs) ───────────────────────────────────
 
 st.markdown("## 💧 Water Contamination Intelligence")
@@ -315,11 +337,10 @@ with tab_chat:
                 )
 
         if _ask_clicked and _question:
-            from datetime import datetime
             st.session_state.messages.append({
                 "role": "user",
                 "content": _question,
-                "ts": datetime.now().strftime("%H:%M · %d %b %Y"),
+                "ts": _now_ts(),
             })
             with st.spinner("Querying knowledge graph…"):
                 try:
