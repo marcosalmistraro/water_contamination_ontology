@@ -182,7 +182,7 @@ tab_chat, tab_map, tab_explore, tab_sources, tab_arch, tab_sparql = st.tabs(
 # ── Chat tab ──────────────────────────────────────────────────────────────────
 
 _EXAMPLE_QUESTIONS = [
-    "Which facilities in Germany emitted the most nitrogen in 2022?",
+    "Which facilities in Germany had the highest total releases?",
     "What are the top 5 pollutants by total emission quantity across all years?",
     "How many emission events are recorded per reporting year?",
     "How many industrial facilities are reported per country?",

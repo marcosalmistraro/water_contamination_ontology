@@ -75,6 +75,7 @@ SPARQL notes:
 - Individual IRIs follow the pattern wcd:facility/<id>, wcd:emission/<id>, etc.
   Do NOT hard-code individual IRIs — use triple patterns to find them.
 - Use OPTIONAL for properties that may be absent (e.g. geo:lat, wc:nutsRegion).
+- For string filters on wc:countryCode, ALWAYS use FILTER(CONTAINS(LCASE(STR(?var)), "value")) — never use bare literal equality like wc:countryCode "Germany" as it may not match the stored datatype.
 - Always include a LIMIT clause.
 - For aggregations (average, count, sum) use SELECT with GROUP BY and aggregate functions like AVG(), COUNT(), SUM().
 """
@@ -82,19 +83,16 @@ SPARQL notes:
 _EXAMPLES = """
 EXAMPLES — study these before writing a query.
 
-Q: Which facilities in Germany emitted the most nitrogen in 2022?
+Q: Which facilities in Germany had the highest total releases?
 A:
 PREFIX wc: <https://w3id.org/water-contamination/>
 SELECT ?name (SUM(?qty) AS ?total) WHERE {
     ?f a wc:IndustrialFacility ;
        wc:facilityName ?name ;
-       wc:countryCode "Germany" ;
+       wc:countryCode ?cc ;
        wc:hasEmissionEvent ?e .
-    ?e wc:reportingYear 2022 ;
-       wc:quantityKg ?qty ;
-       wc:involvesPollutant ?p .
-    ?p wc:pollutantName ?pname .
-    FILTER(CONTAINS(LCASE(STR(?pname)), "nitrogen"))
+    ?e wc:quantityKg ?qty .
+    FILTER(CONTAINS(LCASE(STR(?cc)), "germany"))
 }
 GROUP BY ?name
 ORDER BY DESC(?total)
@@ -142,8 +140,7 @@ SELECT ?country (SUM(?qty) AS ?total) WHERE {
        wc:countryCode ?country ;
        wc:hasEmissionEvent ?e .
     ?e wc:reportingYear 2022 ;
-       wc:quantityKg ?qty ;
-       wc:medium "water" .
+       wc:quantityKg ?qty .
 }
 GROUP BY ?country
 ORDER BY DESC(?total)
