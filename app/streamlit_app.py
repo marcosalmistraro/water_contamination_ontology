@@ -134,7 +134,10 @@ with st.sidebar:
         st.markdown("**Oxigraph persistent store**")
         counts = {
             cls: sum(1 for _ in graph.subjects(RDF.type, URIRef(f"{_WC}{cls}")))
-            for cls in ["IndustrialFacility", "EmissionEvent", "WaterBody", "MonitoringStation"]
+            for cls in [
+                "IndustrialFacility", "EmissionEvent", "WaterBody", "MonitoringStation",
+                "Pollutant", "ComplianceThreshold", "Catchment", "RegulationDocument",
+            ]
         }
         st.caption(f"{len(graph):,} triples · 8 OWL classes")
         for cls, n in counts.items():
