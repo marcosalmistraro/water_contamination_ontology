@@ -301,16 +301,18 @@ with tab_chat:
                 st.button("✕", key="_clr_co", on_click=_clear_country)
 
         # Shared question box — pickers populate it; typing directly activates manual mode
-        st.markdown("**✏️ Write your own**")
-        st.text_area(
-            "Write your own",
-            label_visibility="collapsed",
-            disabled=_mode in ("example", "country"),
-            on_change=_on_change_manual,
-            key="_manual_q",
-            height=100,
-            placeholder="Select a picker above, or type your question here.",
-        )
+        _r3, _x3 = st.columns([11, 1])
+        with _r3:
+            st.text_area(
+                "**✏️ Write your own**",
+                disabled=_mode in ("example", "country"),
+                on_change=_on_change_manual,
+                key="_manual_q",
+                height=100,
+                placeholder="Select a picker above, or type your question here.",
+            )
+        with _x3:
+            pass
 
         # Active question is always whatever is in the shared box
         _question: str | None = st.session_state.get("_manual_q", "").strip() or None
