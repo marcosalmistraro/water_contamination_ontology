@@ -174,6 +174,8 @@ with tab_chat:
     else:
         if "messages" not in st.session_state:
             st.session_state.messages = []
+        if "_select_rev" not in st.session_state:
+            st.session_state["_select_rev"] = 0
 
         st.markdown("#### Ask a question")
 
@@ -183,12 +185,12 @@ with tab_chat:
                 "Ready-made questions",
                 options=["— pick an example question —"] + _EXAMPLE_QUESTIONS,
                 label_visibility="collapsed",
-                key="example_select",
+                key=f"example_select_{st.session_state['_select_rev']}",
             )
             if _selected != "— pick an example question —":
                 st.session_state.messages.append({"role": "user", "content": _selected})
-                # Reset the selectbox back to placeholder
-                st.session_state["example_select"] = "— pick an example question —"
+                # Rotate the key so the selectbox re-renders at index 0
+                st.session_state["_select_rev"] += 1
                 st.rerun()
 
         # New question (chat_input always renders at page bottom)
