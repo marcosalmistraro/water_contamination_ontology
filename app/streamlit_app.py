@@ -238,62 +238,57 @@ with tab_chat:
                 st.session_state[_k] = _v
 
         st.markdown("#### Ask a question")
+        st.caption(
+            "❓ Ready-made — pick from a curated list of questions. "
+            "🗺️ By country — generate a country-specific query. "
+            "Choosing one locks the other. Hit ✕ to clear it."
+        )
 
-        with st.container(border=True):
-            st.caption(
-                "❓ Ready-made — pick from a curated list of questions.\n\n"
-                "🗺️ By country — generate a country-specific query.\n\n"
-                "✏️ Your own — type any question about the knowledge graph.\n\n"
-                "Choosing one locks the other two. Hit ✕ next to the label to clear it."
+        _mode = st.session_state["_input_mode"]
+
+        # Row 1 — Ready-made
+        _r1, _x1 = st.columns([11, 1])
+        with _r1:
+            st.selectbox(
+                "❓ Ready-made",
+                options=[None] + _EXAMPLE_QUESTIONS,
+                format_func=lambda x: "— pick an example question —" if x is None else x,
+                disabled=_mode not in (None, "example"),
+                on_change=_on_change_example,
+                key="_example_q",
             )
+        with _x1:
+            st.markdown('<div style="height:28px"></div>', unsafe_allow_html=True)
+            if _mode == "example":
+                st.button("✕", key="_clr_ex", on_click=_clear_example)
 
-            _mode = st.session_state["_input_mode"]
-
-            # Row 1 — Ready-made
-            _r1, _x1 = st.columns([11, 1])
-            with _r1:
-                st.selectbox(
-                    "❓ Ready-made",
-                    options=[None] + _EXAMPLE_QUESTIONS,
-                    format_func=lambda x: "— pick an example question —" if x is None else x,
-                    disabled=_mode not in (None, "example"),
-                    on_change=_on_change_example,
-                    key="_example_q",
-                )
-            with _x1:
-                st.markdown('<div style="height:28px"></div>', unsafe_allow_html=True)
-                if _mode == "example":
-                    st.button("✕", key="_clr_ex", on_click=_clear_example)
-
-            # Row 2 — By country
-            _r2, _x2 = st.columns([11, 1])
-            with _r2:
-                st.selectbox(
-                    "🗺️ By country",
-                    options=[None] + _COUNTRIES,
-                    format_func=lambda x: "— pick a country —" if x is None else x,
-                    disabled=_mode not in (None, "country"),
-                    on_change=_on_change_country,
-                    key="_country_q",
-                )
-            with _x2:
-                st.markdown('<div style="height:28px"></div>', unsafe_allow_html=True)
-                if _mode == "country":
-                    st.button("✕", key="_clr_co", on_click=_clear_country)
-
-            st.divider()
-
-            # Shared question box — pickers populate it; typing directly activates manual mode
-            st.markdown("**✏️ Write your own**")
-            st.text_area(
-                "Write your own",
-                label_visibility="collapsed",
-                disabled=_mode in ("example", "country"),
-                on_change=_on_change_manual,
-                key="_manual_q",
-                height=100,
-                placeholder="Select a picker above, or type your question here.",
+        # Row 2 — By country
+        _r2, _x2 = st.columns([11, 1])
+        with _r2:
+            st.selectbox(
+                "🗺️ By country",
+                options=[None] + _COUNTRIES,
+                format_func=lambda x: "— pick a country —" if x is None else x,
+                disabled=_mode not in (None, "country"),
+                on_change=_on_change_country,
+                key="_country_q",
             )
+        with _x2:
+            st.markdown('<div style="height:28px"></div>', unsafe_allow_html=True)
+            if _mode == "country":
+                st.button("✕", key="_clr_co", on_click=_clear_country)
+
+        # Shared question box — pickers populate it; typing directly activates manual mode
+        st.markdown("**✏️ Write your own**")
+        st.text_area(
+            "Write your own",
+            label_visibility="collapsed",
+            disabled=_mode in ("example", "country"),
+            on_change=_on_change_manual,
+            key="_manual_q",
+            height=100,
+            placeholder="Select a picker above, or type your question here.",
+        )
 
         # Active question is always whatever is in the shared box
         _question: str | None = st.session_state.get("_manual_q", "").strip() or None
