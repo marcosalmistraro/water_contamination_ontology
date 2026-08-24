@@ -168,38 +168,164 @@ _EXAMPLE_QUESTIONS = [
     "How many emission events involved mercury across all years?",
 ]
 
+_COUNTRIES = [
+    "Germany", "France", "Italy", "Poland", "Spain", "Netherlands",
+    "Belgium", "Czech Republic", "Romania", "Hungary", "Austria", "Sweden",
+]
+
+
+def _on_change_example() -> None:
+    if st.session_state.get("_example_q") is not None:
+        st.session_state["_input_mode"] = "example"
+    elif st.session_state.get("_input_mode") == "example":
+        st.session_state["_input_mode"] = None
+
+
+def _clear_example() -> None:
+    st.session_state["_input_mode"] = None
+    st.session_state["_example_q"] = None
+
+
+def _on_change_country() -> None:
+    if st.session_state.get("_country_q") is not None:
+        st.session_state["_input_mode"] = "country"
+    elif st.session_state.get("_input_mode") == "country":
+        st.session_state["_input_mode"] = None
+
+
+def _clear_country() -> None:
+    st.session_state["_input_mode"] = None
+    st.session_state["_country_q"] = None
+
+
+def _on_change_manual() -> None:
+    if st.session_state.get("_manual_q", "").strip():
+        st.session_state["_input_mode"] = "manual"
+    elif st.session_state.get("_input_mode") == "manual":
+        st.session_state["_input_mode"] = None
+
+
+def _clear_manual() -> None:
+    st.session_state["_input_mode"] = None
+    st.session_state["_manual_q"] = ""
+
+
 with tab_chat:
     if not groq_key:
         st.info("Add a Groq API key to `.env` to enable the chat.")
     else:
-        if "messages" not in st.session_state:
-            st.session_state.messages = []
-        if "_select_rev" not in st.session_state:
-            st.session_state["_select_rev"] = 0
+        import pandas as pd
+
+        for _k, _v in [
+            ("messages", []),
+            ("_input_mode", None),
+            ("_example_q", None),
+            ("_country_q", None),
+            ("_manual_q", ""),
+        ]:
+            if _k not in st.session_state:
+                st.session_state[_k] = _v
 
         st.markdown("#### Ask a question")
 
         with st.container(border=True):
-            st.caption("❓ Ready-made — pick from a list of pre-written questions.")
-            _selected = st.selectbox(
-                "Ready-made questions",
-                options=["— pick an example question —"] + _EXAMPLE_QUESTIONS,
-                label_visibility="collapsed",
-                key=f"example_select_{st.session_state['_select_rev']}",
+            st.caption(
+                "❓ Ready-made — pick from a curated list of questions.\n\n"
+                "🗺️ By country — generate a country-specific query.\n\n"
+                "✏️ Your own — type any question about the knowledge graph.\n\n"
+                "Choosing one locks the other two. Hit ✕ next to the label to clear it."
             )
-            if _selected != "— pick an example question —":
-                st.session_state.messages.append({"role": "user", "content": _selected})
-                # Rotate the key so the selectbox re-renders at index 0
-                st.session_state["_select_rev"] += 1
-                st.rerun()
 
-        # New question (chat_input always renders at page bottom)
-        if prompt := st.chat_input("Or type your own question…"):
-            st.session_state.messages.append({"role": "user", "content": prompt})
+            _mode = st.session_state["_input_mode"]
+
+            # Row 1 — Ready-made
+            _r1, _x1 = st.columns([11, 1])
+            with _r1:
+                st.selectbox(
+                    "❓ Ready-made",
+                    options=[None] + _EXAMPLE_QUESTIONS,
+                    format_func=lambda x: "— pick an example question —" if x is None else x,
+                    disabled=_mode not in (None, "example"),
+                    on_change=_on_change_example,
+                    key="_example_q",
+                )
+            with _x1:
+                st.markdown('<div style="height:28px"></div>', unsafe_allow_html=True)
+                if _mode == "example":
+                    st.button("✕", key="_clr_ex", on_click=_clear_example)
+
+            # Row 2 — By country
+            _r2, _x2 = st.columns([11, 1])
+            with _r2:
+                st.selectbox(
+                    "🗺️ By country",
+                    options=[None] + _COUNTRIES,
+                    format_func=lambda x: "— pick a country —" if x is None else x,
+                    disabled=_mode not in (None, "country"),
+                    on_change=_on_change_country,
+                    key="_country_q",
+                )
+            with _x2:
+                st.markdown('<div style="height:28px"></div>', unsafe_allow_html=True)
+                if _mode == "country":
+                    st.button("✕", key="_clr_co", on_click=_clear_country)
+
+            # Row 3 — Your own
+            _r3, _x3 = st.columns([11, 1])
+            with _r3:
+                st.text_area(
+                    "✏️ Your own",
+                    placeholder="e.g. Which river basins have the most emission events?",
+                    disabled=_mode not in (None, "manual"),
+                    on_change=_on_change_manual,
+                    key="_manual_q",
+                    height=80,
+                )
+            with _x3:
+                st.markdown('<div style="height:28px"></div>', unsafe_allow_html=True)
+                if _mode == "manual":
+                    st.button("✕", key="_clr_mn", on_click=_clear_manual)
+
+        # Assemble active question from whichever mode is selected
+        _question: str | None = None
+        if _mode == "example" and st.session_state.get("_example_q"):
+            _question = st.session_state["_example_q"]
+        elif _mode == "country" and st.session_state.get("_country_q"):
+            _c = st.session_state["_country_q"]
+            _question = (
+                f"Which industrial facilities in {_c} emitted the most pollutants? "
+                "Show the top 10 with their total emission quantities."
+            )
+        elif _mode == "manual" and st.session_state.get("_manual_q", "").strip():
+            _question = st.session_state["_manual_q"].strip()
+
+        # Action row
+        _act_c, _exp_c = st.columns([3, 1])
+        with _act_c:
+            _ask_clicked = st.button("Ask", type="primary", use_container_width=True, disabled=not _question)
+        with _exp_c:
+            _all_rows: list[dict] = [
+                row
+                for _m in st.session_state.messages
+                if _m["role"] == "assistant"
+                for row in (_m.get("rows") or [])
+            ]
+            if _all_rows:
+                _df_export = pd.DataFrame(_all_rows)
+                st.download_button(
+                    "Export CSV",
+                    data=_df_export.to_csv(index=False).encode(),
+                    file_name="water_results.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                )
+
+        if _ask_clicked and _question:
+            st.session_state.messages.append({"role": "user", "content": _question})
             with st.spinner("Querying knowledge graph…"):
                 try:
                     chain = load_chain(groq_key)
-                    result = chain.ask(prompt)
+                    result = chain.ask(_question)
                     st.session_state.messages.append({
                         "role": "assistant",
                         "content": result.answer,
@@ -213,6 +339,7 @@ with tab_chat:
                         "content": "Something went wrong. Please try again.",
                     })
                     logger.error("[UI] Unexpected chain error: %s", exc)
+            st.rerun()
 
         # Group into (user, assistant) exchange pairs
         _msgs = st.session_state.messages
@@ -227,30 +354,43 @@ with tab_chat:
                 _i += 1
 
         if _exchanges:
-            _hcol, _bcol = st.columns([6, 1])
-            with _hcol:
-                st.caption(f"{len(_exchanges)} exchange(s) — newest first")
-            with _bcol:
-                if st.button("Clear all", type="secondary", use_container_width=True):
-                    st.session_state.messages = []
-                    st.rerun()
+            _col_qa, _col_viz = st.columns([1, 1], gap="large")
 
-            import pandas as pd
-            for _rev_idx, (_msg_idx, _user, _asst) in enumerate(reversed(_exchanges)):
-                with st.container(border=True):
-                    _qcol, _dcol = st.columns([20, 1])
-                    with _qcol:
-                        st.markdown(f"**{_user['content']}**")
-                    with _dcol:
-                        if st.button("✕", key=f"del_{_rev_idx}", help="Remove"):
-                            _end = _msg_idx + (2 if _asst else 1)
-                            del st.session_state.messages[_msg_idx:_end]
-                            st.rerun()
-                    if _asst:
-                        st.markdown(_asst["content"])
-                        if _asst.get("sparql"):
-                            with st.expander("Generated SPARQL"):
-                                st.code(_asst["sparql"], language="sparql")
+            with _col_qa:
+                _hcol, _bcol = st.columns([6, 1])
+                with _hcol:
+                    st.caption(f"{len(_exchanges)} exchange(s) — newest first")
+                with _bcol:
+                    if st.button("Clear all", type="secondary", use_container_width=True):
+                        st.session_state.messages = []
+                        st.rerun()
+
+                for _rev_idx, (_msg_idx, _user, _asst) in enumerate(reversed(_exchanges)):
+                    with st.container(border=True):
+                        _qcol, _dcol = st.columns([20, 1])
+                        with _qcol:
+                            st.markdown(f"**{_user['content']}**")
+                        with _dcol:
+                            if st.button("✕", key=f"del_{_rev_idx}", help="Remove"):
+                                _end = _msg_idx + (2 if _asst else 1)
+                                del st.session_state.messages[_msg_idx:_end]
+                                st.rerun()
+                        if _asst:
+                            st.markdown(_asst["content"])
+                            if _asst.get("sparql"):
+                                with st.expander("Generated SPARQL"):
+                                    st.code(_asst["sparql"], language="sparql")
+
+            with _col_viz:
+                _last_with_data = next(
+                    (_a for _, _, _a in reversed(_exchanges) if _a and _a.get("rows")),
+                    None,
+                )
+                if _last_with_data:
+                    st.caption(f"Latest result — {_last_with_data['row_count']} row(s)")
+                    st.dataframe(pd.DataFrame(_last_with_data["rows"]), use_container_width=True)
+                else:
+                    st.caption("Query results will appear here.")
 
 # ── Map tab ───────────────────────────────────────────────────────────────────
 
