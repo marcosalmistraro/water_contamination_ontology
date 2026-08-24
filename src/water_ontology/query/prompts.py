@@ -35,7 +35,7 @@ _PROPERTIES = """
 Datatype properties:
   wc:facilityId           xsd:string   on IndustrialFacility
   wc:facilityName         xsd:string   on IndustrialFacility
-  wc:countryCode          xsd:string   on IndustrialFacility, WaterBody, MonitoringStation
+  wc:countryCode          xsd:string   on IndustrialFacility, WaterBody (NOT on MonitoringStation)
   wc:nutsRegion           xsd:string   on IndustrialFacility
   wc:naceCode             xsd:string   on IndustrialFacility
   geo:lat                 xsd:decimal  on IndustrialFacility, MonitoringStation
@@ -123,28 +123,29 @@ GROUP BY ?pname
 ORDER BY DESC(?total)
 LIMIT 5
 
-Q: List monitoring stations in France with their water body names.
+Q: How many emission events are recorded per reporting year?
 A:
 PREFIX wc: <https://w3id.org/water-contamination/>
-SELECT ?station ?waterBody WHERE {
-    ?s a wc:MonitoringStation ;
-       wc:stationName ?station ;
-       wc:countryCode "FR" ;
-       wc:monitors ?wb .
-    OPTIONAL { ?wb wc:waterBodyName ?waterBody . }
+SELECT ?year (COUNT(?e) AS ?events) WHERE {
+    ?e a wc:EmissionEvent ;
+       wc:reportingYear ?year .
 }
-LIMIT 50
+GROUP BY ?year
+ORDER BY ?year
 
-Q: Which river basins contain the most industrial facilities?
+Q: Which country had the highest total water emissions in 2022?
 A:
 PREFIX wc: <https://w3id.org/water-contamination/>
-SELECT ?rbdName (COUNT(DISTINCT ?f) AS ?count) WHERE {
+SELECT ?country (SUM(?qty) AS ?total) WHERE {
     ?f a wc:IndustrialFacility ;
-       wc:locatedInCatchment ?c .
-    ?c wc:catchmentName ?rbdName .
+       wc:countryCode ?country ;
+       wc:hasEmissionEvent ?e .
+    ?e wc:reportingYear 2022 ;
+       wc:quantityKg ?qty ;
+       wc:medium "water" .
 }
-GROUP BY ?rbdName
-ORDER BY DESC(?count)
+GROUP BY ?country
+ORDER BY DESC(?total)
 LIMIT 10
 """
 
