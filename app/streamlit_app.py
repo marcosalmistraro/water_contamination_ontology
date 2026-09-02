@@ -1,5 +1,5 @@
-"""
-Water Contamination Ontology — Streamlit frontend.
+﻿"""
+Water Contamination Ontology - Streamlit frontend.
 
 Imports NLChain and QueryEngine directly (no FastAPI hop needed).
 Set GROQ_API_KEY in .env or in the sidebar to enable the chat tab.
@@ -98,7 +98,7 @@ def load_graph():  # type: ignore[return]
         try:
             return load_graph_oxigraph(ox_path)
         except Exception as _ox_exc:
-            logger.error("Oxigraph store failed to open (%s) — falling back", _ox_exc)
+            logger.error("Oxigraph store failed to open (%s) - falling back", _ox_exc)
 
     # Fallback: parse NT / OWL file
     for fname, fmt in [("water_contamination.nt", "nt"), ("water_contamination.owl", "xml")]:
@@ -106,7 +106,7 @@ def load_graph():  # type: ignore[return]
         if p.exists():
             return _load(p, fmt=fmt)
 
-    st.warning("No graph file found — using empty graph. Run `make ingest` first.")
+    st.warning("No graph file found - using empty graph. Run `make ingest` first.")
     return build_graph()
 
 
@@ -126,7 +126,7 @@ with st.sidebar:
     st.markdown("**Knowledge Graph**")
     st.caption(
         "Six EU open-data sources ingested and linked into an OWL ontology. "
-        "Stored in an Oxigraph persistent store — millisecond startup, full SPARQL 1.1."
+        "Stored in an Oxigraph persistent store - millisecond startup, full SPARQL 1.1."
     )
 
     graph = load_graph()
@@ -144,7 +144,7 @@ with st.sidebar:
         }
         st.caption(f"{len(graph):,} triples · 8 OWL classes")
         for cls, n in counts.items():
-            st.markdown(f"&nbsp;&nbsp;`{cls}` — **{n:,}**", unsafe_allow_html=True)
+            st.markdown(f"&nbsp;&nbsp;`{cls}` - **{n:,}**", unsafe_allow_html=True)
 
 # ── Browser timezone detection ────────────────────────────────────────────────
 
@@ -173,7 +173,7 @@ def _now_ts() -> str:
 st.markdown("## 💧 Water Contamination Intelligence")
 st.caption(
     "Natural-language intelligence over the EU industrial emissions "
-    "and water quality knowledge graph — 3.1M RDF triples across 8 OWL classes."
+    "and water quality knowledge graph - 3.1M RDF triples across 8 OWL classes."
 )
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
@@ -245,8 +245,8 @@ with tab_chat:
     else:
         st.subheader("Ask a question")
         st.caption(
-            "❓ Ready-made — pick from a curated list of questions.  \n"
-            "🗺️ By country — generate a country-specific query.  \n"
+            "❓ Ready-made - pick from a curated list of questions.  \n"
+            "🗺️ By country - generate a country-specific query.  \n"
             "Choosing one locks the other. Re-open the dropdown and pick the placeholder to clear."
         )
 
@@ -255,7 +255,7 @@ with tab_chat:
         st.selectbox(
             "❓ Ready-made",
             options=[None] + _EXAMPLE_QUESTIONS,
-            format_func=lambda x: "— pick an example question —" if x is None else x,
+            format_func=lambda x: "- pick an example question -" if x is None else x,
             disabled=_mode not in (None, "example"),
             on_change=_on_change_example,
             key="_example_q",
@@ -264,7 +264,7 @@ with tab_chat:
         st.selectbox(
             "🗺️ By country",
             options=[None] + _COUNTRIES,
-            format_func=lambda x: "— pick a country —" if x is None else x,
+            format_func=lambda x: "- pick a country -" if x is None else x,
             disabled=_mode not in (None, "country"),
             on_change=_on_change_country,
             key="_country_q",
@@ -320,21 +320,21 @@ with tab_chat:
             else:
                 _i += 1
 
-        # Latest answer — shown prominently
+        # Latest answer - shown prominently
         if _exchanges:
             _, _latest_user, _latest_asst = _exchanges[-1]
             if _latest_asst:
                 st.markdown("### Answer")
                 st.markdown(_latest_asst["content"])
                 if _latest_asst.get("rows"):
-                    with st.expander(f"Data table — {_latest_asst['row_count']} row(s)"):
+                    with st.expander(f"Data table - {_latest_asst['row_count']} row(s)"):
                         st.dataframe(pd.DataFrame(_latest_asst["rows"]), use_container_width=True)
                 if _latest_asst.get("sparql"):
                     with st.expander("Generated SPARQL"):
                         st.code(_latest_asst["sparql"], language="sparql")
                 st.divider()
 
-        # Session history — older exchanges in expanders
+        # Session history - older exchanges in expanders
         if len(_exchanges) > 1:
             _hcol, _ecol, _ccol = st.columns([3, 1, 1])
             _hcol.markdown("#### Session history")
@@ -519,7 +519,7 @@ _OWL_CLASSES = [
         "group": "spatial",
         "count": "209 River Basin Districts",
         "description": (
-            "An EU River Basin District (RBD) — the fundamental spatial management unit under the "
+            "An EU River Basin District (RBD) - the fundamental spatial management unit under the "
             "Water Framework Directive. RBDs are large hydrological areas defined by polygon geometry "
             "fetched from the EEA ArcGIS REST service. They serve as spatial containers linking "
             "industrial activity to water bodies."
@@ -586,7 +586,7 @@ with tab_explore:
     with st.expander("Ontology Graph", expanded=False):
         st.caption(
             "Hover over a node to inspect its data properties and instance count. "
-            "Drag nodes to rearrange — use the filters to focus on a domain."
+            "Drag nodes to rearrange - use the filters to focus on a domain."
         )
         import streamlit.components.v1 as _components
         _explorer_html = (_ROOT / "app" / "components" / "ontology_explorer.html").read_text(encoding="utf-8")
@@ -697,7 +697,7 @@ _SOURCES_META = {
         ),
     },
     "ied_pdf": {
-        "label": "IED BREF — Large Combustion Plants (2017)",
+        "label": "IED BREF - Large Combustion Plants (2017)",
         "provider": "European Commission / EIPPCB",
         "format": "PDF · ~34 MB",
         "local_key": "local_file",
@@ -767,7 +767,7 @@ with tab_arch:
         "the knowledge graph, and an **online query pipeline** that answers questions in real time."
     )
 
-    with st.expander("Offline — ingestion", expanded=False):
+    with st.expander("Offline - ingestion", expanded=False):
         for step, detail in [
             ("E-PRTR CSV", "European Pollutant Release and Transfer Register v16. Yields 7,615 industrial facilities and 254K emission events across 65 pollutants (2007–2024)."),
             ("Waterbase WISE6 CSV", "EEA water quality observations from 2,168 EU monitoring stations. The full file is 14 GB; ingestion is capped at 500K rows by default."),
@@ -783,14 +783,14 @@ with tab_arch:
                 st.markdown(f"**{step}**")
                 st.caption(detail)
 
-    with st.expander("Online — query", expanded=False):
+    with st.expander("Online - query", expanded=False):
         for step, detail in [
             ("Streamlit UI", "Opens the Oxigraph store in read-only mode on startup. Multiple concurrent readers are supported. The store is cached in memory for the session lifetime."),
-            ("Ask — NLChain", "A LangChain chain backed by the Groq API. The user's question is combined with the ontology schema and sent to the LLM to generate a SPARQL SELECT query."),
+            ("Ask - NLChain", "A LangChain chain backed by the Groq API. The user's question is combined with the ontology schema and sent to the LLM to generate a SPARQL SELECT query."),
             ("Groq API", "Hosted LLM inference (openai/gpt-oss-120b). Receives the schema context and question, returns a valid SPARQL query. Latency is typically under 2 s."),
             ("Oxigraph SPARQL engine", "Rust-native SPARQL 1.1 execution over the full 3.1M-triple graph. Accessed via a thin OxigraphAdapter that provides the rdflib Graph interface."),
             ("QueryEngine", "Validates the generated SPARQL against guardrails (SELECT-only, no DROP/INSERT). Executes the query and formats rows into a structured result object."),
-            ("Visualize — pyoxigraph", "Two SPARQL queries retrieve facility and station coordinates. Results are passed to FastMarkerCluster, keeping the Folium HTML payload small at any scale."),
+            ("Visualize - pyoxigraph", "Two SPARQL queries retrieve facility and station coordinates. Results are passed to FastMarkerCluster, keeping the Folium HTML payload small at any scale."),
             ("SPARQL tab", "Raw query editor for direct SPARQL access. The same guardrails apply. Results are shown as an interactive dataframe."),
         ]:
             with st.container(border=True):
@@ -832,10 +832,11 @@ with tab_arch:
         (
             "Map",
             "Facility and station coordinates are retrieved via two SPARQL queries (LIMIT 10K / 5K). "
-            "`FastMarkerCluster` serialises only `[lat, lon, tooltip]` arrays — keeping the Folium "
+            "`FastMarkerCluster` serialises only `[lat, lon, tooltip]` arrays - keeping the Folium "
             "HTML payload small regardless of marker count."
         ),
     ]:
         with st.container(border=True):
             st.markdown(f"**{title}**")
             st.caption(body)
+
