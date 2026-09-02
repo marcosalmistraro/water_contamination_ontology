@@ -765,44 +765,39 @@ with tab_arch:
     )
 
     st.divider()
-
-    col_off, col_on = st.columns(2)
-
-    with col_off:
-        st.markdown("#### Offline — ingestion")
-        for step, detail in [
-            ("E-PRTR CSV", "European Pollutant Release and Transfer Register v16. Yields 7,615 industrial facilities and 254K emission events across 65 pollutants (2007–2024)."),
-            ("Waterbase WISE6 CSV", "EEA water quality observations from 2,168 EU monitoring stations. The full file is 14 GB; ingestion is capped at 500K rows by default."),
-            ("EEA River Basins GeoJSON", "209 EU River Basin District polygons fetched from the EEA ArcGIS REST service. Used as spatial containers for linking facilities and stations."),
-            ("IED BREF PDF", "EU Industrial Emissions Directive reference document for Large Combustion Plants. 90 pollutant compliance thresholds are extracted from the Annex II table."),
-            ("EnvThes Turtle", "SKOS vocabulary from LTER Europe. Three owl:sameAs links align ontology pollutant concepts to INSPIRE-compliant URIs."),
-            ("WISE Monitoring Sites GeoJSON", "Lat/lon coordinates for ~15K EU monitoring stations. A two-pass crosswalk (EIONET + WFD2022 batch lookup) patches 1,560 stations with coordinates."),
-            ("Spatial joiner", "Point-in-polygon test using Shapely STRtree. Links 7,431 facilities and 1,559 station water bodies to their enclosing River Basin District."),
-            ("rdflib Graph → N-Triples", "All ingesters write into a single in-memory rdflib Graph (~3.1M triples). Serialised to N-Triples format (~1.2 GB) for portability."),
-            ("Oxigraph bulk_load", "The NT file is bulk-loaded into a pyoxigraph persistent B-tree store (~400 MB on disk). The store opens read-only in ~0.15 s on subsequent runs."),
-        ]:
-            with st.container(border=True):
-                st.markdown(f"**{step}**")
-                st.caption(detail)
-
-    with col_on:
-        st.markdown("#### Online — query")
-        for step, detail in [
-            ("Streamlit UI", "Opens the Oxigraph store in read-only mode on startup. Multiple concurrent readers are supported. The store is cached in memory for the session lifetime."),
-            ("Ask — NLChain", "A LangChain chain backed by the Groq API. The user's question is combined with the ontology schema and sent to the LLM to generate a SPARQL SELECT query."),
-            ("Groq API", "Hosted LLM inference (openai/gpt-oss-120b). Receives the schema context and question, returns a valid SPARQL query. Latency is typically under 2 s."),
-            ("Oxigraph SPARQL engine", "Rust-native SPARQL 1.1 execution over the full 3.1M-triple graph. Accessed via a thin OxigraphAdapter that provides the rdflib Graph interface."),
-            ("QueryEngine", "Validates the generated SPARQL against guardrails (SELECT-only, no DROP/INSERT). Executes the query and formats rows into a structured result object."),
-            ("Visualize — pyoxigraph", "Two SPARQL queries retrieve facility and station coordinates. Results are passed to FastMarkerCluster, keeping the Folium HTML payload small at any scale."),
-            ("SPARQL tab", "Raw query editor for direct SPARQL access. The same guardrails apply. Results are shown as an interactive dataframe."),
-        ]:
-            with st.container(border=True):
-                st.markdown(f"**{step}**")
-                st.caption(detail)
+    st.markdown("### Offline — ingestion")
+    for step, detail in [
+        ("E-PRTR CSV", "European Pollutant Release and Transfer Register v16. Yields 7,615 industrial facilities and 254K emission events across 65 pollutants (2007–2024)."),
+        ("Waterbase WISE6 CSV", "EEA water quality observations from 2,168 EU monitoring stations. The full file is 14 GB; ingestion is capped at 500K rows by default."),
+        ("EEA River Basins GeoJSON", "209 EU River Basin District polygons fetched from the EEA ArcGIS REST service. Used as spatial containers for linking facilities and stations."),
+        ("IED BREF PDF", "EU Industrial Emissions Directive reference document for Large Combustion Plants. 90 pollutant compliance thresholds are extracted from the Annex II table."),
+        ("EnvThes Turtle", "SKOS vocabulary from LTER Europe. Three owl:sameAs links align ontology pollutant concepts to INSPIRE-compliant URIs."),
+        ("WISE Monitoring Sites GeoJSON", "Lat/lon coordinates for ~15K EU monitoring stations. A two-pass crosswalk (EIONET + WFD2022 batch lookup) patches 1,560 stations with coordinates."),
+        ("Spatial joiner", "Point-in-polygon test using Shapely STRtree. Links 7,431 facilities and 1,559 station water bodies to their enclosing River Basin District."),
+        ("rdflib Graph → N-Triples", "All ingesters write into a single in-memory rdflib Graph (~3.1M triples). Serialised to N-Triples format (~1.2 GB) for portability."),
+        ("Oxigraph bulk_load", "The NT file is bulk-loaded into a pyoxigraph persistent B-tree store (~400 MB on disk). The store opens read-only in ~0.15 s on subsequent runs."),
+    ]:
+        with st.container(border=True):
+            st.markdown(f"**{step}**")
+            st.caption(detail)
 
     st.divider()
-    st.markdown("#### Components")
+    st.markdown("### Online — query")
+    for step, detail in [
+        ("Streamlit UI", "Opens the Oxigraph store in read-only mode on startup. Multiple concurrent readers are supported. The store is cached in memory for the session lifetime."),
+        ("Ask — NLChain", "A LangChain chain backed by the Groq API. The user's question is combined with the ontology schema and sent to the LLM to generate a SPARQL SELECT query."),
+        ("Groq API", "Hosted LLM inference (openai/gpt-oss-120b). Receives the schema context and question, returns a valid SPARQL query. Latency is typically under 2 s."),
+        ("Oxigraph SPARQL engine", "Rust-native SPARQL 1.1 execution over the full 3.1M-triple graph. Accessed via a thin OxigraphAdapter that provides the rdflib Graph interface."),
+        ("QueryEngine", "Validates the generated SPARQL against guardrails (SELECT-only, no DROP/INSERT). Executes the query and formats rows into a structured result object."),
+        ("Visualize — pyoxigraph", "Two SPARQL queries retrieve facility and station coordinates. Results are passed to FastMarkerCluster, keeping the Folium HTML payload small at any scale."),
+        ("SPARQL tab", "Raw query editor for direct SPARQL access. The same guardrails apply. Results are shown as an interactive dataframe."),
+    ]:
+        with st.container(border=True):
+            st.markdown(f"**{step}**")
+            st.caption(detail)
 
+    st.divider()
+    st.markdown("### Components")
     for title, body in [
         (
             "Data ingestion",
@@ -840,5 +835,6 @@ with tab_arch:
             "HTML payload small regardless of marker count."
         ),
     ]:
-        with st.expander(title):
-            st.markdown(body)
+        with st.container(border=True):
+            st.markdown(f"**{title}**")
+            st.caption(body)
