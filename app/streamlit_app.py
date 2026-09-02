@@ -242,170 +242,180 @@ def _clear_manual() -> None:
 
 
 with tab_chat:
-    if not groq_key:
-        st.info("Add a Groq API key to `.env` to enable the chat.")
-    else:
-        import pandas as pd
+    import pandas as pd
 
-        for _k, _v in [
-            ("messages", []),
-            ("_input_mode", None),
-            ("_example_q", None),
-            ("_country_q", None),
-            ("_manual_q", ""),
-        ]:
-            if _k not in st.session_state:
-                st.session_state[_k] = _v
+    for _k, _v in [
+        ("messages", []),
+        ("_input_mode", None),
+        ("_example_q", None),
+        ("_country_q", None),
+        ("_manual_q", ""),
+    ]:
+        if _k not in st.session_state:
+            st.session_state[_k] = _v
 
-        st.markdown("#### Ask a question")
-        st.caption(
-            "❓ Ready-made — pick from a curated list of questions.  \n"
-            "🗺️ By country — generate a country-specific query.  \n"
-            "Choosing one locks the other. Hit ✕ to clear it."
-        )
+    _col_qa, _col_map = st.columns([1, 1], gap="large")
 
-        _mode = st.session_state["_input_mode"]
-
-        # Row 1 — Ready-made
-        _r1, _x1 = st.columns([11, 1])
-        with _r1:
-            st.selectbox(
-                "❓ Ready-made",
-                options=[None] + _EXAMPLE_QUESTIONS,
-                format_func=lambda x: "— pick an example question —" if x is None else x,
-                disabled=_mode not in (None, "example"),
-                on_change=_on_change_example,
-                key="_example_q",
+    # ── Left column — Q&A ────────────────────────────────────────────────────
+    with _col_qa:
+        if not groq_key:
+            st.info("Add a Groq API key to `.env` to enable the chat.")
+        else:
+            st.subheader("Ask a question")
+            st.caption(
+                "❓ Ready-made — pick from a curated list of questions.  \n"
+                "🗺️ By country — generate a country-specific query.  \n"
+                "Choosing one locks the other. Hit ✕ to clear it."
             )
-        with _x1:
-            st.markdown('<div style="height:28px"></div>', unsafe_allow_html=True)
-            if _mode == "example":
-                st.button("✕", key="_clr_ex", on_click=_clear_example)
 
-        # Row 2 — By country
-        _r2, _x2 = st.columns([11, 1])
-        with _r2:
-            st.selectbox(
-                "🗺️ By country",
-                options=[None] + _COUNTRIES,
-                format_func=lambda x: "— pick a country —" if x is None else x,
-                disabled=_mode not in (None, "country"),
-                on_change=_on_change_country,
-                key="_country_q",
-            )
-        with _x2:
-            st.markdown('<div style="height:28px"></div>', unsafe_allow_html=True)
-            if _mode == "country":
-                st.button("✕", key="_clr_co", on_click=_clear_country)
+            _mode = st.session_state["_input_mode"]
 
-        # Shared question box — pickers populate it; typing directly activates manual mode
-        _r3, _x3 = st.columns([11, 1])
-        with _r3:
-            st.text_area(
-                "**✏️ Write your own**",
-                disabled=_mode in ("example", "country"),
-                on_change=_on_change_manual,
-                key="_manual_q",
-                height=100,
-                placeholder="Select a picker above, or type your question here.",
-            )
-        with _x3:
-            pass
-
-        # Active question is always whatever is in the shared box
-        _question: str | None = st.session_state.get("_manual_q", "").strip() or None
-
-        # Action row
-        _act_c, _exp_c = st.columns([3, 1])
-        with _act_c:
-            _ask_clicked = st.button("Ask", type="primary", use_container_width=True, disabled=not _question)
-        with _exp_c:
-            _all_rows: list[dict] = [
-                row
-                for _m in st.session_state.messages
-                if _m["role"] == "assistant"
-                for row in (_m.get("rows") or [])
-            ]
-            if _all_rows:
-                _df_export = pd.DataFrame(_all_rows)
-                st.download_button(
-                    "Export CSV",
-                    data=_df_export.to_csv(index=False).encode(),
-                    file_name="water_results.csv",
-                    mime="text/csv",
-                    use_container_width=True,
+            # Row 1 — Ready-made
+            _r1, _x1 = st.columns([11, 1])
+            with _r1:
+                st.selectbox(
+                    "❓ Ready-made",
+                    options=[None] + _EXAMPLE_QUESTIONS,
+                    format_func=lambda x: "— pick an example question —" if x is None else x,
+                    disabled=_mode not in (None, "example"),
+                    on_change=_on_change_example,
+                    key="_example_q",
                 )
+            with _x1:
+                st.markdown('<div style="height:28px"></div>', unsafe_allow_html=True)
+                if _mode == "example":
+                    st.button("✕", key="_clr_ex", on_click=_clear_example)
 
-        if _ask_clicked and _question:
-            st.session_state.messages.append({
-                "role": "user",
-                "content": _question,
-                "ts": _now_ts(),
-            })
-            with st.spinner("Querying knowledge graph…"):
-                try:
-                    chain = load_chain(groq_key)
-                    result = chain.ask(_question)
-                    st.session_state.messages.append({
-                        "role": "assistant",
-                        "content": result.answer,
-                        "sparql": result.sparql,
-                        "rows": result.query_result.rows,
-                        "row_count": result.query_result.row_count,
-                    })
-                except Exception as exc:
-                    st.session_state.messages.append({
-                        "role": "assistant",
-                        "content": "Something went wrong. Please try again.",
-                    })
-                    logger.error("[UI] Unexpected chain error: %s", exc)
-            st.rerun()
+            # Row 2 — By country
+            _r2, _x2 = st.columns([11, 1])
+            with _r2:
+                st.selectbox(
+                    "🗺️ By country",
+                    options=[None] + _COUNTRIES,
+                    format_func=lambda x: "— pick a country —" if x is None else x,
+                    disabled=_mode not in (None, "country"),
+                    on_change=_on_change_country,
+                    key="_country_q",
+                )
+            with _x2:
+                st.markdown('<div style="height:28px"></div>', unsafe_allow_html=True)
+                if _mode == "country":
+                    st.button("✕", key="_clr_co", on_click=_clear_country)
 
-        # Group into (user, assistant) exchange pairs
-        _msgs = st.session_state.messages
-        _exchanges: list[tuple[int, dict, dict | None]] = []
-        _i = 0
-        while _i < len(_msgs):
-            if _msgs[_i]["role"] == "user":
-                _asst = _msgs[_i + 1] if _i + 1 < len(_msgs) and _msgs[_i + 1]["role"] == "assistant" else None
-                _exchanges.append((_i, _msgs[_i], _asst))
-                _i += 2 if _asst else 1
-            else:
-                _i += 1
+            # Shared question box
+            _r3, _x3 = st.columns([11, 1])
+            with _r3:
+                st.text_area(
+                    "**✏️ Write your own**",
+                    disabled=_mode in ("example", "country"),
+                    on_change=_on_change_manual,
+                    key="_manual_q",
+                    height=100,
+                    placeholder="Select a picker above, or type your question here.",
+                )
+            with _x3:
+                pass
 
-        if _exchanges:
-            st.divider()
-            _hcol, _bcol = st.columns([6, 1])
-            with _hcol:
-                st.markdown(f"#### Conversation history")
-                st.caption(f"{len(_exchanges)} exchange(s) — newest first")
-            with _bcol:
-                st.markdown('<div style="height:32px"></div>', unsafe_allow_html=True)
-                if st.button("Clear all", type="secondary", use_container_width=True):
+            _question: str | None = st.session_state.get("_manual_q", "").strip() or None
+
+            _ask_clicked = st.button("Ask", type="primary", use_container_width=True, disabled=not _question)
+
+            if _ask_clicked and _question:
+                st.session_state.messages.append({
+                    "role": "user",
+                    "content": _question,
+                    "ts": _now_ts(),
+                })
+                with st.spinner("Querying knowledge graph…"):
+                    try:
+                        chain = load_chain(groq_key)
+                        result = chain.ask(_question)
+                        st.session_state.messages.append({
+                            "role": "assistant",
+                            "content": result.answer,
+                            "sparql": result.sparql,
+                            "rows": result.query_result.rows,
+                            "row_count": result.query_result.row_count,
+                        })
+                    except Exception as exc:
+                        st.session_state.messages.append({
+                            "role": "assistant",
+                            "content": "Something went wrong. Please try again.",
+                        })
+                        logger.error("[UI] Unexpected chain error: %s", exc)
+                st.rerun()
+
+            # Build exchange pairs
+            _msgs = st.session_state.messages
+            _exchanges: list[tuple[int, dict, dict | None]] = []
+            _i = 0
+            while _i < len(_msgs):
+                if _msgs[_i]["role"] == "user":
+                    _asst = _msgs[_i + 1] if _i + 1 < len(_msgs) and _msgs[_i + 1]["role"] == "assistant" else None
+                    _exchanges.append((_i, _msgs[_i], _asst))
+                    _i += 2 if _asst else 1
+                else:
+                    _i += 1
+
+            # Latest answer — shown prominently
+            if _exchanges:
+                _, _latest_user, _latest_asst = _exchanges[-1]
+                if _latest_asst:
+                    st.markdown("### Answer")
+                    st.markdown(_latest_asst["content"])
+                    if _latest_asst.get("rows"):
+                        with st.expander(f"Data table — {_latest_asst['row_count']} row(s)"):
+                            st.dataframe(pd.DataFrame(_latest_asst["rows"]), use_container_width=True)
+                    if _latest_asst.get("sparql"):
+                        with st.expander("Generated SPARQL"):
+                            st.code(_latest_asst["sparql"], language="sparql")
+
+            # Session history — older exchanges in expanders
+            if len(_exchanges) > 1:
+                st.divider()
+                _hcol, _ecol, _ccol = st.columns([3, 1, 1])
+                _hcol.markdown("#### Session history")
+                _all_rows: list[dict] = [
+                    row for _, _, _a in _exchanges if _a for row in (_a.get("rows") or [])
+                ]
+                if _all_rows:
+                    _ecol.download_button(
+                        "Export CSV",
+                        data=pd.DataFrame(_all_rows).to_csv(index=False).encode(),
+                        file_name="water_results.csv",
+                        mime="text/csv",
+                        use_container_width=True,
+                    )
+                if _ccol.button("Clear all", type="secondary", use_container_width=True):
                     st.session_state.messages = []
                     st.rerun()
 
-            for _rev_idx, (_msg_idx, _user, _asst) in enumerate(reversed(_exchanges)):
-                with st.container(border=True):
-                    _qcol, _dcol = st.columns([20, 1])
-                    with _qcol:
-                        st.markdown(f"**{_user['content']}**")
+                for _hist_idx, (_msg_idx, _user, _asst) in enumerate(reversed(_exchanges[:-1])):
+                    with st.expander(_user["content"][:80]):
                         if _user.get("ts"):
                             st.caption(_user["ts"])
-                    with _dcol:
-                        st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
-                        if st.button("✕", key=f"del_{_rev_idx}", help="Remove this exchange"):
+                        if _asst:
+                            st.markdown(_asst["content"])
+                            if _asst.get("rows"):
+                                st.dataframe(pd.DataFrame(_asst["rows"]), use_container_width=True)
+                            if _asst.get("sparql"):
+                                with st.expander("Generated SPARQL"):
+                                    st.code(_asst["sparql"], language="sparql")
+                        if st.button("🗑️ Delete", key=f"_del_hist_{_hist_idx}"):
                             _end = _msg_idx + (2 if _asst else 1)
                             del st.session_state.messages[_msg_idx:_end]
                             st.rerun()
-                    if _asst:
-                        st.markdown(_asst["content"])
-                        if _asst.get("rows"):
-                            with st.expander(f"Data table — {_asst['row_count']} row(s)"):
-                                st.dataframe(pd.DataFrame(_asst["rows"]), use_container_width=True)
-                        if _asst.get("sparql"):
-                            with st.expander("Generated SPARQL"):
-                                st.code(_asst["sparql"], language="sparql")
+
+    # ── Right column — map ───────────────────────────────────────────────────
+    with _col_map:
+        st.subheader("EU Contamination Map")
+        st.caption("🔴 Industrial facilities · 🔵 Monitoring stations")
+        try:
+            from streamlit_folium import st_folium
+            from components.map_view import build_map
+            st_folium(build_map(graph), use_container_width=True, height=560, returned_objects=[])
+        except Exception as _map_exc:
+            st.error(f"Map error: {_map_exc}")
 
 # ── Map tab ───────────────────────────────────────────────────────────────────
 
