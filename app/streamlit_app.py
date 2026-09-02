@@ -1,4 +1,4 @@
-﻿"""
+"""
 Water Contamination Ontology - Streamlit frontend.
 
 Imports NLChain and QueryEngine directly (no FastAPI hop needed).
