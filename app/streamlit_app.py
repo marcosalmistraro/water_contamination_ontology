@@ -552,44 +552,45 @@ _OWL_CLASSES = [
 ]
 
 with tab_explore:
-    st.markdown("#### Ontology Entities")
     st.caption("Eight OWL classes. For each entity: what it represents, what it links to, and what links to it.")
+    st.divider()
 
-    for _cls_meta in _OWL_CLASSES:
-        _color = _CLASS_COLORS[_cls_meta["group"]]
-        _badge = (
-            f'<span style="background:{_color};color:#fff;padding:2px 10px;'
-            f'border-radius:99px;font-size:12px;font-weight:500">{_cls_meta["name"]}</span>'
+    with st.expander("Ontology Entities", expanded=False):
+        for _cls_meta in _OWL_CLASSES:
+            _color = _CLASS_COLORS[_cls_meta["group"]]
+            _badge = (
+                f'<span style="background:{_color};color:#fff;padding:2px 10px;'
+                f'border-radius:99px;font-size:14px;font-weight:500">{_cls_meta["name"]}</span>'
+            )
+            _count_str = f" &nbsp;·&nbsp; {_cls_meta['count']}" if _cls_meta["count"] else ""
+            st.markdown(f"{_badge}{_count_str}", unsafe_allow_html=True)
+            st.markdown(_cls_meta["description"])
+
+            _lo, _li = _cls_meta["links_out"], _cls_meta["links_in"]
+            if _lo or _li:
+                _c1, _c2 = st.columns(2)
+                with _c1:
+                    if _lo:
+                        st.markdown("**Links to**")
+                        for _prop, _target, _why in _lo:
+                            st.markdown(f"→ **{_target}** via `{_prop}`")
+                            st.caption(_why)
+                with _c2:
+                    if _li:
+                        st.markdown("**Linked from**")
+                        for _prop, _src, _why in _li:
+                            st.markdown(f"← **{_src}** via `{_prop}`")
+                            st.caption(_why)
+            st.divider()
+
+    with st.expander("Ontology Graph", expanded=False):
+        st.caption(
+            "Hover over a node to inspect its data properties and instance count. "
+            "Drag nodes to rearrange — use the filters to focus on a domain."
         )
-        _count_str = f" &nbsp;·&nbsp; {_cls_meta['count']}" if _cls_meta["count"] else ""
-        st.markdown(f"{_badge}{_count_str}", unsafe_allow_html=True)
-        st.markdown(_cls_meta["description"])
-
-        _lo, _li = _cls_meta["links_out"], _cls_meta["links_in"]
-        if _lo or _li:
-            _c1, _c2 = st.columns(2)
-            with _c1:
-                if _lo:
-                    st.markdown("**Links to**")
-                    for _prop, _target, _why in _lo:
-                        st.markdown(f"→ **{_target}** via `{_prop}`")
-                        st.caption(_why)
-            with _c2:
-                if _li:
-                    st.markdown("**Linked from**")
-                    for _prop, _src, _why in _li:
-                        st.markdown(f"← **{_src}** via `{_prop}`")
-                        st.caption(_why)
-        st.divider()
-
-    st.markdown("#### Ontology Graph")
-    st.caption(
-        "Hover over a node to inspect its data properties and instance count. "
-        "Drag nodes to rearrange — use the filters to focus on a domain."
-    )
-    import streamlit.components.v1 as _components
-    _explorer_html = (_ROOT / "app" / "components" / "ontology_explorer.html").read_text(encoding="utf-8")
-    _components.html(_explorer_html, height=620)
+        import streamlit.components.v1 as _components
+        _explorer_html = (_ROOT / "app" / "components" / "ontology_explorer.html").read_text(encoding="utf-8")
+        _components.html(_explorer_html, height=620)
 
 # ── SPARQL tab ────────────────────────────────────────────────────────────────
 
