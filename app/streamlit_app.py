@@ -207,12 +207,6 @@ def _on_change_example() -> None:
         st.session_state["_manual_q"] = ""
 
 
-def _clear_example() -> None:
-    st.session_state["_input_mode"] = None
-    st.session_state["_example_q"] = None
-    st.session_state["_manual_q"] = ""
-
-
 def _on_change_country() -> None:
     val = st.session_state.get("_country_q")
     if val is not None:
@@ -226,22 +220,11 @@ def _on_change_country() -> None:
         st.session_state["_manual_q"] = ""
 
 
-def _clear_country() -> None:
-    st.session_state["_input_mode"] = None
-    st.session_state["_country_q"] = None
-    st.session_state["_manual_q"] = ""
-
-
 def _on_change_manual() -> None:
     if st.session_state.get("_manual_q", "").strip():
         st.session_state["_input_mode"] = "manual"
     else:
         st.session_state["_input_mode"] = None
-
-
-def _clear_manual() -> None:
-    st.session_state["_input_mode"] = None
-    st.session_state["_manual_q"] = ""
 
 
 with tab_chat:
@@ -264,56 +247,37 @@ with tab_chat:
         st.caption(
             "❓ Ready-made — pick from a curated list of questions.  \n"
             "🗺️ By country — generate a country-specific query.  \n"
-            "Choosing one locks the other. Hit ✕ to clear it."
+            "Choosing one locks the other. Re-open the dropdown and pick the placeholder to clear."
         )
 
         _mode = st.session_state["_input_mode"]
 
-        # Row 1 — Ready-made
-        _r1, _x1 = st.columns([11, 1])
-        with _r1:
-            st.selectbox(
-                "❓ Ready-made",
-                options=[None] + _EXAMPLE_QUESTIONS,
-                format_func=lambda x: "— pick an example question —" if x is None else x,
-                disabled=_mode not in (None, "example"),
-                on_change=_on_change_example,
-                key="_example_q",
-            )
-        with _x1:
-            st.markdown('<div style="height:28px"></div>', unsafe_allow_html=True)
-            if _mode == "example":
-                st.button("✕", key="_clr_ex", on_click=_clear_example)
+        st.selectbox(
+            "❓ Ready-made",
+            options=[None] + _EXAMPLE_QUESTIONS,
+            format_func=lambda x: "— pick an example question —" if x is None else x,
+            disabled=_mode not in (None, "example"),
+            on_change=_on_change_example,
+            key="_example_q",
+        )
 
-        # Row 2 — By country
-        _r2, _x2 = st.columns([11, 1])
-        with _r2:
-            st.selectbox(
-                "🗺️ By country",
-                options=[None] + _COUNTRIES,
-                format_func=lambda x: "— pick a country —" if x is None else x,
-                disabled=_mode not in (None, "country"),
-                on_change=_on_change_country,
-                key="_country_q",
-            )
-        with _x2:
-            st.markdown('<div style="height:28px"></div>', unsafe_allow_html=True)
-            if _mode == "country":
-                st.button("✕", key="_clr_co", on_click=_clear_country)
+        st.selectbox(
+            "🗺️ By country",
+            options=[None] + _COUNTRIES,
+            format_func=lambda x: "— pick a country —" if x is None else x,
+            disabled=_mode not in (None, "country"),
+            on_change=_on_change_country,
+            key="_country_q",
+        )
 
-        # Shared question box
-        _r3, _x3 = st.columns([11, 1])
-        with _r3:
-            st.text_area(
-                "**✏️ Write your own**",
-                disabled=_mode in ("example", "country"),
-                on_change=_on_change_manual,
-                key="_manual_q",
-                height=100,
-                placeholder="Select a picker above, or type your question here.",
-            )
-        with _x3:
-            pass
+        st.text_area(
+            "**✏️ Write your own**",
+            disabled=_mode in ("example", "country"),
+            on_change=_on_change_manual,
+            key="_manual_q",
+            height=100,
+            placeholder="Select a picker above, or type your question here.",
+        )
 
         _question: str | None = st.session_state.get("_manual_q", "").strip() or None
 
@@ -390,20 +354,23 @@ with tab_chat:
                 st.rerun()
 
             for _hist_idx, (_msg_idx, _user, _asst) in enumerate(reversed(_exchanges[:-1])):
-                with st.expander(_user["content"][:80]):
-                    if _user.get("ts"):
-                        st.caption(_user["ts"])
-                    if _asst:
-                        st.markdown(_asst["content"])
-                        if _asst.get("rows"):
-                            st.dataframe(pd.DataFrame(_asst["rows"]), use_container_width=True)
-                        if _asst.get("sparql"):
-                            with st.expander("Generated SPARQL"):
-                                st.code(_asst["sparql"], language="sparql")
-                    if st.button("🗑️ Delete", key=f"_del_hist_{_hist_idx}"):
+                _col_q, _col_del = st.columns([8, 1])
+                with _col_del:
+                    if st.button("✕", key=f"_del_hist_{_hist_idx}", use_container_width=True):
                         _end = _msg_idx + (2 if _asst else 1)
                         del st.session_state.messages[_msg_idx:_end]
                         st.rerun()
+                with _col_q:
+                    with st.expander(_user["content"][:80]):
+                        if _user.get("ts"):
+                            st.caption(_user["ts"])
+                        if _asst:
+                            st.markdown(_asst["content"])
+                            if _asst.get("rows"):
+                                st.dataframe(pd.DataFrame(_asst["rows"]), use_container_width=True)
+                            if _asst.get("sparql"):
+                                with st.expander("Generated SPARQL"):
+                                    st.code(_asst["sparql"], language="sparql")
 
 # ── Map tab ───────────────────────────────────────────────────────────────────
 
