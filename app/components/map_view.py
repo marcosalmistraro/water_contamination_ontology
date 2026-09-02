@@ -75,7 +75,7 @@ function(cluster) {
 
 
 def build_map(graph: Any) -> folium.Map:
-    m = folium.Map(location=[52.0, 10.0], zoom_start=4, tiles="CartoDB positron")
+    m = folium.Map(location=[52.0, 10.0], zoom_start=4, tiles="OpenStreetMap")
     _add_facilities(m, graph)
     _add_stations(m, graph)
     return m

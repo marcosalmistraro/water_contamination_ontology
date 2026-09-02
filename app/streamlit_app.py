@@ -83,7 +83,7 @@ def _download_store_from_hf(ox_path: Path) -> None:
             s.update(label=f"Download failed: {exc}", state="error")
 
 
-@st.cache_resource(show_spinner="Loading knowledge graph…")
+@st.cache_resource(show_spinner=False)
 def load_graph():  # type: ignore[return]
     from water_ontology.graph import build_graph, load_graph as _load, load_graph_oxigraph
 
@@ -95,7 +95,10 @@ def load_graph():  # type: ignore[return]
 
     # Oxigraph store: opens in milliseconds
     if ox_path.exists():
-        return load_graph_oxigraph(ox_path)
+        try:
+            return load_graph_oxigraph(ox_path)
+        except Exception as _ox_exc:
+            logger.error("Oxigraph store failed to open (%s) — falling back", _ox_exc)
 
     # Fallback: parse NT / OWL file
     for fname, fmt in [("water_contamination.nt", "nt"), ("water_contamination.owl", "xml")]:
