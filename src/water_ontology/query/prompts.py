@@ -75,7 +75,8 @@ SPARQL notes:
 - Individual IRIs follow the pattern wcd:facility/<id>, wcd:emission/<id>, etc.
   Do NOT hard-code individual IRIs — use triple patterns to find them.
 - Use OPTIONAL for properties that may be absent (e.g. geo:lat, wc:nutsRegion).
-- For string filters on wc:countryCode, ALWAYS use FILTER(CONTAINS(LCASE(STR(?var)), "value")) — never use bare literal equality like wc:countryCode "Germany" as it may not match the stored datatype.
+- For string filters on wc:countryCode, ALWAYS use FILTER(CONTAINS(LCASE(STR(?var)), "value")).
+  Never use bare literal equality like wc:countryCode "Germany" - it may not match the stored datatype.
 - Always include a LIMIT clause.
 - For aggregations (average, count, sum) use SELECT with GROUP BY and aggregate functions like AVG(), COUNT(), SUM().
 """
