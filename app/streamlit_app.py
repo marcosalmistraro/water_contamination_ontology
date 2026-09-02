@@ -554,7 +554,6 @@ _OWL_CLASSES = [
 with tab_explore:
     st.subheader("Explore")
     st.markdown("Eight OWL classes. For each entity: what it represents, what it links to, and what links to it.")
-    st.divider()
 
     with st.expander("Ontology Entities", expanded=False):
         for _cls_meta in _OWL_CLASSES:
