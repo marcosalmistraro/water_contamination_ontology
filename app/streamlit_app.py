@@ -764,7 +764,6 @@ with tab_arch:
         "the knowledge graph, and an **online query pipeline** that answers questions in real time."
     )
 
-    st.divider()
     st.markdown("### Offline — ingestion")
     for step, detail in [
         ("E-PRTR CSV", "European Pollutant Release and Transfer Register v16. Yields 7,615 industrial facilities and 254K emission events across 65 pollutants (2007–2024)."),
