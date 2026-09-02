@@ -736,6 +736,7 @@ with tab_sources:
         "All data is open and publicly available. "
         "Click any dataset link to download or explore the original source."
     )
+    st.divider()
 
     from water_ontology.config import load_sources
     src_cfg = load_sources(_ROOT / "config" / "sources.yaml")
@@ -743,16 +744,19 @@ with tab_sources:
     for key, meta in _SOURCES_META.items():
         cfg = src_cfg.sources.get(key)
 
+        with st.container():
+            col_info, col_links = st.columns([3, 1])
+            with col_info:
+                st.markdown(f"### {meta['label']}")
+                st.caption(f"Provider: {meta['provider']} · Format: {meta['format']}")
+                st.markdown(meta["desc"])
+                st.markdown(f"**How it is used:** {meta['usage']}")
+            with col_links:
+                st.markdown("&nbsp;")
+                if cfg:
+                    st.link_button("Download ↗", url=cfg.url, use_container_width=True)
+
         st.divider()
-        hcol, bcol = st.columns([8, 1])
-        with hcol:
-            st.markdown(f"**{meta['label']}**")
-            st.caption(f"Provider: {meta['provider']} · Format: {meta['format']}")
-        with bcol:
-            if cfg:
-                st.link_button("Download ↗", url=cfg.url, use_container_width=True)
-        st.markdown(meta["desc"])
-        st.markdown(f"**How it is used:** {meta['usage']}")
 
 # ── Architecture tab ──────────────────────────────────────────────────────────
 
