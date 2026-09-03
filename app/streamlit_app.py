@@ -411,9 +411,12 @@ with tab_map:
         from components.map_view import build_map
         fmap = build_map(graph)
         st_folium(fmap, use_container_width=True, height=600, returned_objects=[])
-        st.markdown(
-            "🔴 &nbsp;Industrial facility &nbsp;&nbsp;&nbsp; 🔵 &nbsp;Monitoring station",
-            unsafe_allow_html=True,
+        st.caption(
+            "- 🔴 **Industrial facilities** - 7,615 EU sites required to report annual"
+            " pollutant releases under the E-PRTR regulation\n"
+            "- 🔵 **Monitoring stations** - 2,168 fixed measurement points tracking"
+            " water quality under the Water Framework Directive\n"
+            "- Click a cluster to zoom in and see individual sites"
         )
     except Exception as _map_exc:
         import traceback
