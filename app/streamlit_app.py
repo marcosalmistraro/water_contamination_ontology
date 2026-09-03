@@ -123,26 +123,57 @@ def load_chain(api_key: str):  # type: ignore[return]
 with st.sidebar:
     groq_key = os.getenv("GROQ_API_KEY", "")
 
-    st.markdown("**Knowledge Graph**")
-    st.caption(
-        "Six EU open-data sources ingested and linked into an OWL ontology. "
-        "Stored in an Oxigraph persistent store - millisecond startup, full SPARQL 1.1."
-    )
+    with st.expander("What is this?"):
+        st.markdown(
+            "- An OWL knowledge graph built from six EU open-data sources on industrial"
+            " emissions and water quality\n"
+            "- 3.1M RDF triples covering 7,615 facilities, 254K emission events, and"
+            " 2,168 monitoring stations across all EU member states\n"
+            "- Data spans 2007-2024 under the E-PRTR regulation and the Water Framework"
+            " Directive\n"
+            "- Stored in an Oxigraph persistent store - opens in milliseconds with full"
+            " SPARQL 1.1 support"
+        )
+
+    with st.expander("What does it do?"):
+        st.markdown(
+            "- Answers natural-language questions about industrial pollution and water"
+            " contamination across the EU\n"
+            "- Translates your question into a SPARQL query, runs it against the graph,"
+            " and returns a plain-language answer with the underlying data\n"
+            "- Lets you filter by country, pollutant, facility, or reporting year\n"
+            "- Logs your session history and lets you export results as CSV"
+        )
+
+    with st.expander("What can I explore?"):
+        st.markdown(
+            "- **Ask** - pick a ready-made question or write your own, see the answer"
+            " and data table\n"
+            "- **Visualize** - browse facilities and monitoring stations on an"
+            " interactive map\n"
+            "- **Explore** - read what each of the 8 OWL classes represents and how"
+            " they link together\n"
+            "- **Data Sources / Architecture / Raw SPARQL** - dive into provenance,"
+            " system design, or write queries directly"
+        )
+
+    st.divider()
 
     graph = load_graph()
     _WC = "https://w3id.org/water-contamination/"
     from rdflib import RDF, URIRef
 
-    with st.container(border=True):
-        st.markdown("**Oxigraph persistent store**")
-        counts = {
-            cls: sum(1 for _ in graph.subjects(RDF.type, URIRef(f"{_WC}{cls}")))
-            for cls in [
-                "IndustrialFacility", "EmissionEvent", "WaterBody", "MonitoringStation",
-                "Pollutant", "ComplianceThreshold", "Catchment", "RegulationDocument",
-            ]
-        }
-        st.caption(f"{len(graph):,} triples · 8 OWL classes")
+    counts = {
+        cls: sum(1 for _ in graph.subjects(RDF.type, URIRef(f"{_WC}{cls}")))
+        for cls in [
+            "IndustrialFacility", "EmissionEvent", "WaterBody", "MonitoringStation",
+            "Pollutant", "ComplianceThreshold", "Catchment", "RegulationDocument",
+        ]
+    }
+
+    with st.expander("Knowledge graph"):
+        st.markdown(f"**{len(graph):,} triples - 8 OWL classes**")
+        st.caption("Oxigraph persistent store, read-only, opens in ~0.15 s.")
         for cls, n in counts.items():
             st.markdown(f"&nbsp;&nbsp;`{cls}` - **{n:,}**", unsafe_allow_html=True)
 
