@@ -410,7 +410,6 @@ with tab_map:
         from streamlit_folium import st_folium
         from components.map_view import build_map
         fmap = build_map(graph)
-        st_folium(fmap, use_container_width=True, height=600, returned_objects=[])
         st.caption(
             "- 🔴 **Industrial facilities** - 7,615 EU sites required to report annual"
             " pollutant releases under the E-PRTR regulation\n"
@@ -418,6 +417,7 @@ with tab_map:
             " water quality under the Water Framework Directive\n"
             "- Click a cluster to zoom in and see individual sites"
         )
+        st_folium(fmap, use_container_width=True, height=600, returned_objects=[])
     except Exception as _map_exc:
         import traceback
         st.error(f"Map error: {_map_exc}")
