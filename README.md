@@ -104,7 +104,18 @@ make ui
 streamlit run app/streamlit_app.py
 ```
 
-Three tabs: **Chat** (NL queries), **Map** (Folium choropleth), **SPARQL** (raw editor).
+The app is also deployed on Streamlit Cloud and loads the knowledge graph from Hugging Face Hub on first run (requires `HF_REPO_ID` secret).
+
+### Tabs
+
+| Tab | What it does |
+|-----|-------------|
+| **Ask** | Pick a ready-made question, select a country, or write your own. The question is translated into SPARQL, executed against the graph, and returned as a plain-language answer with an optional data table. Session history is exportable as CSV. |
+| **Visualize** | Interactive map of all 7,615 industrial facilities (red) and 2,168 monitoring stations (blue), clustered for performance. Click a cluster to zoom in. |
+| **Explore** | Collapsible reference for all 8 OWL classes - what each represents, what it links to, and what links back to it. Includes an interactive ontology graph. |
+| **Data Sources** | Provenance for each of the six EU open-data sources with download links. |
+| **Architecture** | Step-by-step breakdown of the offline ingestion pipeline and online query pipeline. |
+| **Raw SPARQL** | Direct SPARQL editor against the live graph with guardrails (SELECT-only). |
 
 ## Testing
 
