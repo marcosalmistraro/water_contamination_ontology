@@ -1,5 +1,12 @@
 # Water Contamination Ontology
 
+![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?logo=streamlit&logoColor=white)
+![RDF](https://img.shields.io/badge/RDF%2FOWL-rdflib-1f6feb)
+![Groq](https://img.shields.io/badge/LLM-Groq%20Llama-f55036)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./License)
+
 An ontology-driven pipeline that ingests EU industrial emissions and water quality data into an OWL/RDF knowledge graph, validates it with SHACL, and exposes it through a FastAPI backend and a Streamlit UI with natural-language querying.
 
 ## Architecture
@@ -178,3 +185,7 @@ data/
 └── raw/            Downloaded source files (git-ignored)
 tests/              One test module per source/component
 ```
+
+## License
+
+This project is licensed under the MIT License. See the [License](./License) file for details.
